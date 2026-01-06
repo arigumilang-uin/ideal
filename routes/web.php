@@ -28,6 +28,15 @@ Route::middleware('guest')->group(function () {
 
     Route::post('/', [LoginController::class, 'login'])
         ->name('login.post');
+
+    // ===================================================================
+    // GOOGLE OAUTH (Login with Google)
+    // ===================================================================
+    Route::get('/auth/google', [\App\Http\Controllers\Auth\SocialAuthController::class, 'redirectToGoogle'])
+        ->name('auth.google');
+
+    Route::get('/auth/google/callback', [\App\Http\Controllers\Auth\SocialAuthController::class, 'handleGoogleCallback'])
+        ->name('auth.google.callback');
 });
 
 // ===================================================================

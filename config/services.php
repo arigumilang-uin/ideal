@@ -35,4 +35,19 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Google OAuth (Socialite)
+    |--------------------------------------------------------------------------
+    |
+    | Untuk fitur "Login with Google". User yang email-nya sudah terdaftar
+    | di sistem bisa login langsung via akun Google mereka.
+    |
+    */
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
+    ],
+
 ];

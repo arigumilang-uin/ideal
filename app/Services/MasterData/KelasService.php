@@ -393,7 +393,7 @@ class KelasService
             'role_id' => $role?->id,
             'nama' => 'Wali Kelas ' . $kelas->nama_kelas,
             'username' => $username,
-            'email' => $username . '@no-reply.local',
+            // Email: NULL - akun auto-generated tidak perlu email palsu
             'password' => $password,
         ]);
         

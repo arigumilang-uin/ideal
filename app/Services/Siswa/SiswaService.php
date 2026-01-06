@@ -315,8 +315,10 @@ $waliId = $siswa->wali_murid_user_id;
         // Password berdasarkan nomor HP (lebih mudah diingat wali)
         $password = 'smkn1.walimurid.' . $phoneClean;
         
-        // Email menggunakan username
-        $email = $username . '@walimurid.local';
+        // Email: NULL (akan diisi sendiri oleh user jika mau)
+        // Tidak lagi membuat email palsu @walimurid.local
+        
+        // Nama = "Wali dari {nama_siswa}"
         
         // Nama = "Wali dari {nama_siswa}"
         $nama = 'Wali dari ' . $namaSiswa;
@@ -333,7 +335,7 @@ $waliId = $siswa->wali_murid_user_id;
             'role_id' => $role->id,
             'nama' => $nama,
             'username' => $username,
-            'email' => $email,
+            // Email: NULL - akun auto-generated tidak perlu email palsu
             'phone' => $phoneClean, // Store phone for sibling lookup
             'password' => $password,
             'is_active' => true,

@@ -119,7 +119,6 @@ class UserNameSyncObserver
         
         $newName = null;
         $newUsername = null;
-        $newEmail = null;
         
         switch ($role->nama_role) {
             case 'Kaprodi':
@@ -175,7 +174,7 @@ class UserNameSyncObserver
                                 }
                                 
                                 $newUsername = $usernameToUse;
-                                $newEmail = $usernameToUse . '@walimurid.local';
+                                // Email: TIDAK di-update otomatis (biarkan null atau yang sudah ada)
                             }
                         }
                     }
@@ -203,11 +202,6 @@ class UserNameSyncObserver
         // Username hanya di-update jika BELUM pernah diubah manual
         if ($newUsername && $newUsername !== $user->username && !$user->hasChangedUsername()) {
             $updates['username'] = $newUsername;
-        }
-        
-        // Email ikut username
-        if ($newEmail && $newEmail !== $user->email && !$user->hasChangedUsername()) {
-            $updates['email'] = $newEmail;
         }
         
         // Update if we have changes

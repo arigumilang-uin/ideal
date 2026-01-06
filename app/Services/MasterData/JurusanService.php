@@ -265,7 +265,7 @@ class JurusanService
             'role_id' => $role?->id,
             'nama' => 'Kaprodi ' . $jurusan->nama_jurusan,
             'username' => $username,
-            'email' => $username . '@no-reply.local',
+            // Email: NULL - akun auto-generated tidak perlu email palsu
             'password' => $password,
         ]);
         
