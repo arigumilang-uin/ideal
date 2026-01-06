@@ -1,10 +1,11 @@
 @props([
     'title' => null,
     'subtitle' => null,
-    'maxWidth' => '2xl', // sm, md, lg, xl, 2xl, 3xl, 4xl, full
+    'maxWidth' => 'full', // sm, md, lg, xl, 2xl, 3xl, 4xl, 5xl, 6xl, full
     'action' => null,
     'method' => 'POST',
     'hasFiles' => false,
+    'columns' => 1, // 1 = single column, 2 = two columns layout
 ])
 
 @php
@@ -16,25 +17,27 @@ $widthClasses = [
     '2xl' => 'max-w-2xl',
     '3xl' => 'max-w-3xl',
     '4xl' => 'max-w-4xl',
-    'full' => 'w-full',
+    '5xl' => 'max-w-5xl',
+    '6xl' => 'max-w-6xl',
+    'full' => 'w-full max-w-none',
 ];
-$widthClass = $widthClasses[$maxWidth] ?? 'max-w-2xl';
+$widthClass = $widthClasses[$maxWidth] ?? 'w-full max-w-none';
 @endphp
 
-<div class="{{ $widthClass }}">
-    <div class="card">
+<div class="form-page-container {{ $widthClass }}">
+    <div class="form-card">
         @if($title)
-        <div class="card-header">
-            <div>
-                <h3 class="card-title">{{ $title }}</h3>
+        <div class="form-card-header">
+            <div class="form-card-header-content">
+                <h2 class="form-card-title">{{ $title }}</h2>
                 @if($subtitle)
-                    <p class="text-sm text-gray-500 mt-0.5">{{ $subtitle }}</p>
+                    <p class="form-card-subtitle">{{ $subtitle }}</p>
                 @endif
             </div>
         </div>
         @endif
         
-        <div class="card-body">
+        <div class="form-card-body">
             @if($action)
             <form 
                 action="{{ $action }}" 
@@ -47,11 +50,23 @@ $widthClass = $widthClasses[$maxWidth] ?? 'max-w-2xl';
                     @method($method)
                 @endif
                 
-                {{ $slot }}
+                @if($columns == 2)
+                <div class="form-two-columns">
+                    {{ $slot }}
+                </div>
+                @else
+                    {{ $slot }}
+                @endif
             </form>
             @else
                 <div {{ $attributes->merge(['class' => 'space-y-6']) }}>
-                    {{ $slot }}
+                    @if($columns == 2)
+                    <div class="form-two-columns">
+                        {{ $slot }}
+                    </div>
+                    @else
+                        {{ $slot }}
+                    @endif
                 </div>
             @endif
         </div>

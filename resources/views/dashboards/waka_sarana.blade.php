@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@include('partials._chartjs')
 
 @section('page-header', false)
 

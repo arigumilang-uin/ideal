@@ -60,12 +60,11 @@ class KonsentrasiController extends Controller
 
     /**
      * Show the form for creating a new konsentrasi
+     * DEPRECATED: Form is now inside slide-over drawer on index page
      */
     public function create()
     {
-        $jurusanList = Jurusan::orderBy('nama_jurusan')->get();
-
-        return view('konsentrasi.create', compact('jurusanList'));
+        return redirect()->route('konsentrasi.index');
     }
 
     /**
@@ -102,12 +101,11 @@ class KonsentrasiController extends Controller
 
     /**
      * Show the form for editing the specified konsentrasi
+     * DEPRECATED: Form is now inside slide-over drawer on index page
      */
     public function edit(Konsentrasi $konsentrasi)
     {
-        $jurusanList = Jurusan::orderBy('nama_jurusan')->get();
-
-        return view('konsentrasi.edit', compact('konsentrasi', 'jurusanList'));
+        return redirect()->route('konsentrasi.index')->with('edit_id', $konsentrasi->id);
     }
 
     /**

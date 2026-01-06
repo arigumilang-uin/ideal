@@ -14,11 +14,11 @@
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Chart.js (CDN - globally cached, better for shared hosting) -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" defer></script>
-    
     <!-- Vite Assets -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    
+    <!-- Chart.js: Only loaded on pages that need it via @push('chartjs') -->
+    @stack('chartjs')
     
     @stack('styles')
     

@@ -26,6 +26,10 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
         Route::get('/bulk-create', [SiswaController::class, 'bulkCreate'])
             ->name('bulk-create')
             ->middleware('can:create,App\Models\Siswa');
+        
+        // AJAX Checks
+        Route::get('/check-nisn', [SiswaController::class, 'checkNisn'])->name('check-nisn');
+        Route::get('/check-wali-hp', [SiswaController::class, 'checkWaliHp'])->name('check-wali-hp');
 
         Route::post('/bulk-store', [SiswaController::class, 'bulkStore'])
             ->name('bulk-store')

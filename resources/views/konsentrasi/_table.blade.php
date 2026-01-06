@@ -34,9 +34,23 @@
                                 <a href="{{ route('konsentrasi.show', $k->id) }}" class="btn btn-icon btn-outline" title="Detail">
                                     <x-ui.icon name="eye" size="16" />
                                 </a>
-                                <a href="{{ route('konsentrasi.edit', $k->id) }}" class="btn btn-icon btn-outline" title="Edit">
+                                <button 
+                                    type="button"
+                                    @click="$dispatch('open-konsentrasi-form', { 
+                                        title: 'Edit Konsentrasi',
+                                        editMode: true,
+                                        id: {{ $k->id }},
+                                        jurusan_id: {{ $k->jurusan_id }},
+                                        kode_konsentrasi: '{{ $k->kode_konsentrasi ?? '' }}',
+                                        nama_konsentrasi: '{{ addslashes($k->nama_konsentrasi) }}',
+                                        deskripsi: '{{ addslashes($k->deskripsi ?? '') }}',
+                                        is_active: {{ $k->is_active ? 'true' : 'false' }}
+                                    })"
+                                    class="btn btn-icon btn-outline" 
+                                    title="Edit"
+                                >
                                     <x-ui.icon name="edit" size="16" />
-                                </a>
+                                </button>
                                 <form action="{{ route('konsentrasi.destroy', $k->id) }}" method="POST" class="inline" onsubmit="return confirm('Hapus konsentrasi ini?')">
                                     @csrf
                                     @method('DELETE')
@@ -56,10 +70,23 @@
                                         <x-ui.icon name="eye" size="16" />
                                         Detail
                                     </a>
-                                    <a href="{{ route('konsentrasi.edit', $k->id) }}" class="action-dropdown-item action-dropdown-item--edit">
+                                    <button 
+                                        type="button"
+                                        @click="open = false; $dispatch('open-konsentrasi-form', { 
+                                            title: 'Edit Konsentrasi',
+                                            editMode: true,
+                                            id: {{ $k->id }},
+                                            jurusan_id: {{ $k->jurusan_id }},
+                                            kode_konsentrasi: '{{ $k->kode_konsentrasi ?? '' }}',
+                                            nama_konsentrasi: '{{ addslashes($k->nama_konsentrasi) }}',
+                                            deskripsi: '{{ addslashes($k->deskripsi ?? '') }}',
+                                            is_active: {{ $k->is_active ? 'true' : 'false' }}
+                                        })"
+                                        class="action-dropdown-item action-dropdown-item--edit w-full text-left"
+                                    >
                                         <x-ui.icon name="edit" size="16" />
                                         Edit
-                                    </a>
+                                    </button>
                                     <div class="action-dropdown-divider"></div>
                                     <form action="{{ route('konsentrasi.destroy', $k->id) }}" method="POST" onsubmit="return confirm('Hapus konsentrasi ini?')">
                                         @csrf
@@ -82,10 +109,14 @@
                                 description="Belum ada konsentrasi yang terdaftar." 
                             >
                                 <x-slot:action>
-                                    <a href="{{ route('konsentrasi.create') }}" class="btn btn-primary">
+                                    <button 
+                                        type="button"
+                                        @click="$dispatch('open-konsentrasi-form', { title: 'Tambah Konsentrasi Baru' })"
+                                        class="btn btn-primary"
+                                    >
                                         <x-ui.icon name="plus" size="18" />
                                         <span>Tambah Konsentrasi</span>
-                                    </a>
+                                    </button>
                                 </x-slot:action>
                             </x-ui.empty-state>
                         </td>

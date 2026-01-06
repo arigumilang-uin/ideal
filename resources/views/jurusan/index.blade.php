@@ -98,9 +98,7 @@
                                          this.isLongPress = false;
                                          this.timer = setTimeout(() => {
                                              this.isLongPress = true;
-                                             // Trigger Selection Mode (Parent Scope)
                                              this.selectionMode = true;
-                                             // Add to selected (Parent Scope)
                                              if (!this.selected.includes('{{ $j->id }}')) {
                                                  this.selected.push('{{ $j->id }}');
                                              }
@@ -120,11 +118,9 @@
                                              const trigger = this.$refs.trigger.getBoundingClientRect();
                                              const menu = this.$refs.menu;
                                              
-                                             // Calculate Right Alignment
                                              let left = trigger.right - menu.offsetWidth;
                                              let top = trigger.bottom + 2; 
                                              
-                                             // Check bottom overflow
                                              if (window.innerHeight - trigger.bottom < menu.offsetHeight + 20) {
                                                  top = trigger.top - menu.offsetHeight - 2;
                                              }
@@ -170,10 +166,21 @@
                                                 <x-ui.icon name="info" size="14" />
                                                 Detail
                                             </a>
-                                            <a href="{{ route('jurusan.edit', $j->id) }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors">
+                                            <button 
+                                                type="button"
+                                                @click="open = false; $dispatch('open-jurusan-form', { 
+                                                    title: 'Edit Jurusan',
+                                                    editMode: true,
+                                                    id: {{ $j->id }},
+                                                    kode_jurusan: '{{ $j->kode_jurusan ?? '' }}',
+                                                    nama_jurusan: '{{ addslashes($j->nama_jurusan) }}',
+                                                    kaprodi_user_id: {{ $j->kaprodi_user_id ?? 'null' }}
+                                                })"
+                                                class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors"
+                                            >
                                                 <x-ui.icon name="edit" size="14" />
                                                 Edit
-                                            </a>
+                                            </button>
                                             <div class="border-t border-gray-100 my-1"></div>
                                             <form action="{{ route('jurusan.destroy', $j->id) }}" method="POST" onsubmit="return confirm('Hapus jurusan ini?')">
                                                 @csrf
@@ -229,23 +236,44 @@
     icon="layers"
 >
     <form 
+        id="jurusan-form-element"
         action="{{ route('jurusan.store') }}" 
         method="POST" 
         class="space-y-5"
-        x-data="{ submitting: false, isEdit: false, editId: null }"
-        @submit="submitting = true"
+        x-data="{
+            editMode: false,
+            editId: null,
+            formData: {
+                kode_jurusan: '',
+                nama_jurusan: '',
+                kaprodi_user_id: ''
+            },
+            resetForm() {
+                this.editMode = false;
+                this.editId = null;
+                this.formData = {
+                    kode_jurusan: '',
+                    nama_jurusan: '',
+                    kaprodi_user_id: ''
+                };
+            }
+        }"
         x-on:open-jurusan-form.window="
-            isEdit = $event.detail?.id ? true : false;
-            editId = $event.detail?.id || null;
-            if (isEdit) {
-                $el.action = '{{ url('jurusan') }}/' + editId;
+            if ($event.detail?.editMode) {
+                editMode = true;
+                editId = $event.detail.id;
+                formData.kode_jurusan = $event.detail.kode_jurusan || '';
+                formData.nama_jurusan = $event.detail.nama_jurusan || '';
+                formData.kaprodi_user_id = $event.detail.kaprodi_user_id || '';
             } else {
-                $el.action = '{{ route('jurusan.store') }}';
+                resetForm();
             }
         "
+        x-on:slide-over-closed.window="resetForm()"
+        :action="editMode ? '{{ url('jurusan') }}/' + editId : '{{ route('jurusan.store') }}'"
     >
         @csrf
-        <input type="hidden" name="_method" x-bind:value="isEdit ? 'PUT' : 'POST'">
+        <input type="hidden" name="_method" x-bind:value="editMode ? 'PUT' : 'POST'">
         
         <div class="form-section">
             <div class="form-section-title">
@@ -254,30 +282,49 @@
             </div>
             
             <x-forms.grid :cols="2">
-                <x-forms.input 
-                    name="kode_jurusan" 
-                    label="Kode Jurusan" 
-                    placeholder="Contoh: TKJ" 
-                    required 
-                    help="Maks. 10 karakter"
-                />
+                <div class="form-group">
+                    <label for="kode_jurusan" class="form-label form-label-required">Kode Jurusan</label>
+                    <input 
+                        type="text" 
+                        name="kode_jurusan" 
+                        id="kode_jurusan" 
+                        class="form-input"
+                        placeholder="Contoh: TKJ"
+                        maxlength="10"
+                        required
+                        x-model="formData.kode_jurusan"
+                    >
+                    <p class="form-help">Maks. 10 karakter</p>
+                </div>
                 
-                <x-forms.select 
-                    name="kaprodi_user_id" 
-                    label="Kepala Prodi" 
-                    :options="$kaprodiList ?? []"
-                    optionValue="id"
-                    optionLabel="username"
-                    placeholder="-- Pilih Kaprodi --"
-                />
+                <div class="form-group">
+                    <label for="kaprodi_user_id" class="form-label">Kepala Prodi</label>
+                    <select 
+                        name="kaprodi_user_id" 
+                        id="kaprodi_user_id" 
+                        class="form-input form-select"
+                        x-model="formData.kaprodi_user_id"
+                    >
+                        <option value="">-- Pilih Kaprodi --</option>
+                        @foreach($kaprodiList ?? [] as $k)
+                            <option value="{{ $k->id }}">{{ $k->username }}</option>
+                        @endforeach
+                    </select>
+                </div>
             </x-forms.grid>
             
-            <x-forms.input 
-                name="nama_jurusan" 
-                label="Nama Jurusan" 
-                placeholder="Contoh: Teknik Komputer dan Jaringan" 
-                required 
-            />
+            <div class="form-group">
+                <label for="nama_jurusan" class="form-label form-label-required">Nama Jurusan</label>
+                <input 
+                    type="text" 
+                    name="nama_jurusan" 
+                    id="nama_jurusan" 
+                    class="form-input"
+                    placeholder="Contoh: Teknik Komputer dan Jaringan"
+                    required
+                    x-model="formData.nama_jurusan"
+                >
+            </div>
         </div>
     </form>
     
@@ -287,9 +334,8 @@
         </button>
         <button 
             type="submit" 
-            form="jurusan-form-form"
             class="btn btn-primary"
-            onclick="this.closest('.slide-over-panel').querySelector('form').submit()"
+            onclick="document.getElementById('jurusan-form-element').submit()"
         >
             <x-ui.icon name="save" size="18" />
             <span>Simpan Jurusan</span>
@@ -297,4 +343,3 @@
     </x-slot:footer>
 </x-ui.slide-over>
 @endsection
-

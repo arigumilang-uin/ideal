@@ -114,6 +114,74 @@ class SiswaController extends Controller
     }
 
     /**
+     * Check if NISN is available immediately via AJAX.
+     */
+    public function checkNisn(\Illuminate\Http\Request $request)
+    {
+        $nisn = $request->query('nisn');
+        
+        if (!$nisn) {
+            return response()->json(['valid' => false, 'message' => 'NISN kosong']);
+        }
+        
+        // Cek format angka & panjang (HARUS 10 digit pas)
+        if (!ctype_digit($nisn) || strlen($nisn) !== 10) {
+            return response()->json([
+                'valid' => false, 
+                'message' => 'NISN harus tepat 10 digit angka'
+            ]);
+        }
+
+        // Cek database
+        $existing = \App\Models\Siswa::where('nisn', $nisn)->first();
+
+        if ($existing) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'NISN sudah terdaftar',
+                'owner' => $existing->nama_siswa
+            ]);
+        }
+
+        return response()->json(['valid' => true, 'message' => 'NISN tersedia']);
+    }
+
+    /**
+     * Check Wali HP availability via AJAX.
+     */
+    public function checkWaliHp(\Illuminate\Http\Request $request)
+    {
+        $hp = $request->query('hp');
+        
+        // Bersihkan nomor HP (hanya angka)
+        $hpClean = preg_replace('/\D+/', '', $hp);
+
+        if (!$hpClean) {
+            return response()->json(['status' => 'invalid']);
+        }
+
+        // Cari user yang punya role 'Wali Murid' dan phone matching
+        $wali = \App\Models\User::where('phone', $hpClean)
+            ->whereHas('role', function($q) {
+                $q->where('nama_role', 'Wali Murid');
+            })
+            ->first();
+
+        if ($wali) {
+            return response()->json([
+                'status' => 'found',
+                'wali' => [
+                    'id' => $wali->id,
+                    'nama' => $wali->nama,
+                    'username' => $wali->username
+                ]
+            ]);
+        }
+
+        return response()->json(['status' => 'available']);
+    }
+
+    /**
      * Simpan siswa baru.
      * 
      * ALUR:
