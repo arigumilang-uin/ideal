@@ -31,6 +31,12 @@ class UserNamingService
             case 'Waka Kesiswaan':
                 return 'Waka Kesiswaan';
 
+            case 'Waka Sarana':
+                return 'Waka Sarana';
+
+            case 'Operator Sekolah':
+                return 'Operator Sekolah';
+
             case 'Kaprodi':
                 $jurusan = $user->jurusanDiampu;
                 if ($jurusan) {
@@ -56,8 +62,13 @@ class UserNamingService
             case 'Guru':
                 return 'Guru';
 
+            case 'Developer':
+                // Developer tetap pakai nama yang sudah ada atau default
+                return $user->nama ?? 'Developer';
+
             default:
-                return $user->nama ?? 'User';
+                // Fallback: gunakan nama role jika ada, atau 'User'
+                return $roleName ?: ($user->nama ?? 'User');
         }
     }
 

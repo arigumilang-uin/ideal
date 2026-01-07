@@ -36,22 +36,34 @@ class UpdateUserRequest extends FormRequest
 
         return [
             'role_id' => ['sometimes', 'exists:roles,id'],
-            'nama' => ['required', 'string', 'max:255'], // Operator CAN edit
+            // Nama = Auto-generated berdasarkan role (tidak perlu input dari operator)
+            'nama' => ['nullable', 'string', 'max:255'],
+            // Username = Nama asli user (bisa dengan gelar, spasi, dll)
             'username' => [
                 'required',
                 'string',
-                'max:50',
+                'max:100',
                 Rule::unique('users', 'username')->ignore($userId),
             ],
             'email' => [
-                'required',
+                'nullable',
                 'email',
                 'max:255',
                 Rule::unique('users', 'email')->ignore($userId),
             ],
             'phone' => ['nullable', 'string', 'max:20'],
-            'nip' => ['nullable', 'string', 'max:20'],
-            'nuptk' => ['nullable', 'string', 'max:20'],
+            'nip' => [
+                'nullable', 
+                'string', 
+                'max:20',
+                Rule::unique('users', 'nip')->ignore($userId),
+            ],
+            'nuptk' => [
+                'nullable', 
+                'string', 
+                'max:20',
+                Rule::unique('users', 'nuptk')->ignore($userId),
+            ],
             'is_active' => ['boolean'],
             
             // Role-specific assignments

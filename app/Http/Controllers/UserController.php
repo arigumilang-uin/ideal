@@ -219,41 +219,64 @@ class UserController extends Controller
     /**
      * Update own profile.
      * 
-     * NEW LOGIC (Updated 2025-12-11):
+     * LOGIC (Updated 2026-01-07):
      * - nama: AUTO-GENERATED (cannot be edited by user)
-     * - username: EDITABLE (user's login identifier)
-     * - email, phone: EDITABLE
+     * - username (Nama Lengkap): 
+     *   - Wali Murid: CAN EDIT
+     *   - Other roles: CANNOT EDIT (only Operator Sekolah can)
+     * - email, phone, nip, nuptk: EDITABLE
      */
     public function updateProfile(Request $request): RedirectResponse
     {
         $userId = auth()->id();
+        $user = auth()->user();
+        $isWaliMurid = $user->hasRole('Wali Murid');
         
-        $request->validate([
-            'username' => [
-                'required',
-                'string',
-                'max:50',
-                \Illuminate\Validation\Rule::unique('users', 'username')->ignore($userId),
-            ],
+        // Build validation rules
+        $rules = [
             'email' => [
-                'required',
+                'nullable',
                 'email',
                 'max:255',
                 \Illuminate\Validation\Rule::unique('users', 'email')->ignore($userId),
             ],
             'phone' => ['nullable', 'string', 'max:20'],
-        ]);
+            'nip' => ['nullable', 'string', 'max:20', \Illuminate\Validation\Rule::unique('users', 'nip')->ignore($userId)],
+            'nuptk' => ['nullable', 'string', 'max:20', \Illuminate\Validation\Rule::unique('users', 'nuptk')->ignore($userId)],
+        ];
+        
+        // Only validate username for Wali Murid
+        if ($isWaliMurid) {
+            $rules['username'] = [
+                'required',
+                'string',
+                'max:100',
+                \Illuminate\Validation\Rule::unique('users', 'username')->ignore($userId),
+            ];
+        }
+        
+        $request->validate($rules);
 
-        $userData = UserData::from([
+        // Build update data
+        $updateData = [
             'id' => $userId,
-            'nama' => auth()->user()->nama, // KEEP EXISTING (auto-generated)
-            'username' => $request->username, // ALLOW EDIT
+            'nama' => $user->nama, // KEEP EXISTING (auto-generated)
             'email' => $request->email,
             'phone' => $request->phone,
-            'role_id' => auth()->user()->role_id,
-            'is_active' => auth()->user()->is_active,
-        ]);
+            'nip' => $request->nip,
+            'nuptk' => $request->nuptk,
+            'role_id' => $user->role_id,
+            'is_active' => $user->is_active,
+        ];
+        
+        // Only allow username change for Wali Murid
+        if ($isWaliMurid && $request->has('username')) {
+            $updateData['username'] = $request->username;
+        } else {
+            $updateData['username'] = $user->username; // Keep existing
+        }
 
+        $userData = UserData::from($updateData);
         $this->userService->updateUser($userId, $userData);
 
         return redirect()

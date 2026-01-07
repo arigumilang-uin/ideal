@@ -40,9 +40,9 @@ class JurusanController extends Controller
     {
         $jurusanList = $this->jurusanService->getAllJurusan();
         
-        // Get kaprodi list for drawer form dropdown
+        // Get user list for kaprodi dropdown - all users EXCEPT Wali Murid
         $kaprodiList = \App\Models\User::whereHas('role', function ($q) {
-            $q->whereIn('nama_role', ['Kaprodi', 'Guru', 'Developer']);
+            $q->where('nama_role', '!=', 'Wali Murid');
         })->orderBy('username')->get();
         
         return view('jurusan.index', compact('jurusanList', 'kaprodiList'));

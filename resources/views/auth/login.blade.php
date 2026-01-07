@@ -11,6 +11,10 @@
     
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     
+    {{-- Alpine.js x-cloak: Hide elements until Alpine loads --}}
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
 
 </head>
 <body style="margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif;">
@@ -131,7 +135,13 @@
                         </div>
                     @endif
 
-                    <form action="{{ route('login.post') }}" method="POST" x-data="{ showPassword: false }">
+                    <form action="{{ route('login.post') }}" method="POST" 
+                          x-data="{ 
+                              showPassword: false, 
+                              isLoading: false,
+                              loadingText: 'Memeriksa...'
+                          }"
+                          @submit="isLoading = true; setTimeout(() => { loadingText = 'Mengarahkan...' }, 800)">
                         @csrf
 
                         <div class="mb-4">
@@ -140,7 +150,9 @@
                                 <input type="text" id="username" name="username" value="{{ old('username') }}" required autofocus 
                                     class="input-field text-[13px]"
                                     style="padding: 12px 12px 12px 44px; border: 1px solid #cbd5e1; background-color: #ffffff; border-radius: 10px;"
-                                    placeholder="NIP / NUPTK / No. HP">
+                                    placeholder="NIP / NUPTK / No. HP"
+                                    :readonly="isLoading"
+                                    :class="{ 'bg-slate-100 cursor-not-allowed': isLoading }">
                                 <div class="input-icon" style="left: 14px;">
                                     <x-ui.icon name="user" size="18" stroke-width="2" />
                                 </div>
@@ -153,11 +165,13 @@
                                 <input :type="showPassword ? 'text' : 'password'" id="password" name="password" required 
                                     class="input-field text-[13px]"
                                     style="padding: 12px 44px 12px 44px; border: 1px solid #cbd5e1; background-color: #ffffff; border-radius: 10px;"
-                                    placeholder="Password anda">
+                                    placeholder="Password anda"
+                                    :readonly="isLoading"
+                                    :class="{ 'bg-slate-100 cursor-not-allowed': isLoading }">
                                 <div class="input-icon" style="left: 14px;">
                                     <x-ui.icon name="lock" size="18" stroke-width="2" />
                                 </div>
-                                <button type="button" @click="showPassword = !showPassword" class="input-icon-btn" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px; transition: all 0.2s;" onmouseover="this.style.color='#64748b'" onmouseout="this.style.color='#94a3b8'">
+                                <button type="button" @click="showPassword = !showPassword" class="input-icon-btn" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px; transition: all 0.2s;" onmouseover="this.style.color='#64748b'" onmouseout="this.style.color='#94a3b8'" :disabled="isLoading">
                                     <x-ui.icon name="eye" size="18" x-show="!showPassword" stroke-width="2" />
                                     <x-ui.icon name="eye-off" size="18" x-show="showPassword" stroke-width="2" />
                                 </button>
@@ -191,10 +205,25 @@
                         <button type="submit" 
                             class="text-[13px] p-3"
                             style="width: 100%; background: linear-gradient(135deg, #059669, #10b981); color: white; font-weight: 700; border: none; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 8px 20px -5px rgba(16, 185, 129, 0.5); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); letter-spacing: 0.5px; position: relative; overflow: hidden;"
-                            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 16px 30px -5px rgba(16, 185, 129, 0.6)';"
-                            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 20px -5px rgba(16, 185, 129, 0.5)';">
-                            <span style="position: relative; z-index: 1;">MASUK SEKARANG</span>
-                            <x-ui.icon name="arrow-right" size="16" stroke-width="2.5" style="position: relative; z-index: 1;" />
+                            :class="{ 'opacity-80 cursor-wait': isLoading }"
+                            :disabled="isLoading"
+                            @mouseover="if(!isLoading) { $el.style.transform='translateY(-2px)'; $el.style.boxShadow='0 16px 30px -5px rgba(16, 185, 129, 0.6)'; }"
+                            @mouseout="$el.style.transform='translateY(0)'; $el.style.boxShadow='0 8px 20px -5px rgba(16, 185, 129, 0.5)';">
+                            
+                            {{-- Default State --}}
+                            <span x-show="!isLoading" class="flex items-center gap-2">
+                                <span>MASUK SEKARANG</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                            </span>
+                            
+                            {{-- Loading State --}}
+                            <span x-show="isLoading" x-cloak class="flex items-center gap-2">
+                                <svg class="animate-spin" style="width: 16px; height: 16px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span x-text="loadingText"></span>
+                            </span>
                         </button>
 
                     </form>

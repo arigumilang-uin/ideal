@@ -45,10 +45,10 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <x-forms.input 
                             name="username" 
-                            label="Username" 
-                            placeholder="username.pengguna"
+                            label="Nama Lengkap" 
+                            placeholder="Ari Gumilang, S.T., M.Kom"
                             required 
-                            help="Digunakan untuk login. Gunakan huruf kecil dan titik." 
+                            help="Nama asli user (bisa dengan gelar). Digunakan untuk login & ditampilkan di sistem." 
                         />
                         
                         <x-forms.input 

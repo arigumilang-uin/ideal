@@ -315,12 +315,7 @@ $waliId = $siswa->wali_murid_user_id;
         // Password berdasarkan nomor HP (lebih mudah diingat wali)
         $password = 'smkn1.walimurid.' . $phoneClean;
         
-        // Email: NULL (akan diisi sendiri oleh user jika mau)
-        // Tidak lagi membuat email palsu @walimurid.local
-        
-        // Nama = "Wali dari {nama_siswa}"
-        
-        // Nama = "Wali dari {nama_siswa}"
+
         $nama = 'Wali dari ' . $namaSiswa;
         
         $role = Role::where('nama_role', 'Wali Murid')->first();
@@ -358,31 +353,42 @@ $waliId = $siswa->wali_murid_user_id;
         try {
             $successCount = 0;
             $waliCredentials = [];
+            $skippedWaliCount = 0; // Track siswa tanpa nomor HP yang di-skip untuk wali
             
             foreach ($rows as $row) {
                 $waliMuridUserId = null;
+                $nomorHpWali = $row['nomor_hp_wali_murid'] ?? '';
+                
+                // Bersihkan nomor HP
+                $phoneClean = preg_replace('/\D+/', '', $nomorHpWali);
                 
                 if ($createWaliAll) {
-                    $waliCred = $this->findOrCreateWaliByPhone(
-                        $row['nomor_hp_wali_murid'] ?? '',
-                        $row['nama'],
-                        $row['nisn'] ?? null  // Add NISN for username
-                    );
-                    
-                    $waliMuridUserId = $waliCred['user_id'];
-                    
-                    // Only add to credentials if it's a new account
-                    if ($waliCred['is_new']) {
-                        $waliCredentials[] = $waliCred;
+                    // SMART HANDLING: Jika nomor HP kosong, skip pembuatan wali tapi siswa tetap dibuat
+                    if ($phoneClean !== '') {
+                        $waliCred = $this->findOrCreateWaliByPhone(
+                            $nomorHpWali,
+                            $row['nama'],
+                            $row['nisn'] ?? null  // Add NISN for username
+                        );
+                        
+                        $waliMuridUserId = $waliCred['user_id'];
+                        
+                        // Only add to credentials if it's a new account
+                        if ($waliCred['is_new']) {
+                            $waliCredentials[] = $waliCred;
+                        }
+                    } else {
+                        // No phone number - skip wali creation but continue with siswa
+                        $skippedWaliCount++;
                     }
                 }
                 
                 $siswaArray = [
                     'kelas_id' => $kelasId,
-                    'wali_murid_user_id' => $waliMuridUserId,
+                    'wali_murid_user_id' => $waliMuridUserId, // Will be null if no HP
                     'nisn' => $row['nisn'],
                     'nama_siswa' => $row['nama'],
-                    'nomor_hp_wali_murid' => $row['nomor_hp_wali_murid'] ?? null,
+                    'nomor_hp_wali_murid' => $phoneClean !== '' ? $phoneClean : null,
                 ];
                 
                 $this->siswaRepository->create($siswaArray);
@@ -394,6 +400,7 @@ $waliId = $siswa->wali_murid_user_id;
             return [
                 'success_count' => $successCount,
                 'wali_credentials' => $waliCredentials,
+                'skipped_wali_count' => $skippedWaliCount, // Report how many siswa skipped for wali
             ];
             
         } catch (\Exception $e) {

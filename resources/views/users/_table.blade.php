@@ -61,7 +61,14 @@
             <tbody>
                 @forelse($users ?? [] as $user)
                     <tr :class="{ 'bg-indigo-50/40': selected.includes('{{ $user->id }}') }">
-                        <td class="font-medium text-gray-800">{{ $user->username }}</td>
+                        <td class="font-medium text-gray-800">
+                            <div>{{ $user->username }}</div>
+                            @if($user->nip)
+                                <div class="text-[11px] text-slate-500 font-normal mt-0.5">NIP: {{ $user->nip }}</div>
+                            @elseif($user->nuptk)
+                                <div class="text-[11px] text-slate-500 font-normal mt-0.5">NUPTK: {{ $user->nuptk }}</div>
+                            @endif
+                        </td>
                         <td class="text-gray-600 text-sm">{{ $user->nama ?? '-' }}</td>
                         <td class="text-gray-500">{{ $user->email ?? '-' }}</td>
                         <td>

@@ -508,7 +508,20 @@ class SiswaController extends Controller
 
             // Prepare success message
             $successCount = $result['success_count'];
+            $skippedWaliCount = $result['skipped_wali_count'] ?? 0;
             $message = "Berhasil menambahkan {$successCount} siswa.";
+            
+            // Info tentang wali yang dibuat
+            if ($createWaliAll) {
+                $connectedCount = $successCount - $skippedWaliCount;
+                if ($connectedCount > 0) {
+                    $newWaliCount = count($result['wali_credentials'] ?? []);
+                    $message .= " {$connectedCount} siswa terhubung ke akun wali murid ({$newWaliCount} akun baru dibuat).";
+                }
+                if ($skippedWaliCount > 0) {
+                    $message .= " {$skippedWaliCount} siswa tidak terhubung ke wali (nomor HP kosong).";
+                }
+            }
             
             if (!empty($errors)) {
                 $message .= " Beberapa baris dilewati karena error.";

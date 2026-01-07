@@ -60,11 +60,28 @@
                     @method('PUT')
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {{-- Username (readonly) --}}
+                        {{-- Username --}}
                         <div class="form-group">
-                            <label class="form-label">Username</label>
-                            <input type="text" value="{{ Auth::user()->username }}" class="form-input bg-gray-50" readonly disabled>
-                            <p class="form-help">Username tidak dapat diubah.</p>
+                            <label for="username" class="form-label">Nama Lengkap</label>
+                            @if(Auth::user()->hasRole('Wali Murid'))
+                                {{-- Wali Murid can edit their username --}}
+                                <input 
+                                    type="text" 
+                                    id="username"
+                                    name="username"
+                                    value="{{ old('username', Auth::user()->username) }}" 
+                                    class="form-input @error('username') error @enderror"
+                                    placeholder="Nama lengkap Anda"
+                                >
+                                @error('username')
+                                    <p class="form-error">{{ $message }}</p>
+                                @enderror
+                                <p class="form-help">Nama yang akan ditampilkan di sistem.</p>
+                            @else
+                                {{-- Other roles: readonly --}}
+                                <input type="text" value="{{ Auth::user()->username }}" class="form-input bg-gray-50" readonly disabled>
+                                <p class="form-help">Nama Lengkap hanya dapat diubah oleh Operator Sekolah.</p>
+                            @endif
                         </div>
                         
                         {{-- Email --}}

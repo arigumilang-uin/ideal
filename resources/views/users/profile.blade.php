@@ -83,14 +83,24 @@
                                 @enderror
                             </div>
 
-                            {{-- Username --}}
+                            {{-- Username / Nama Lengkap --}}
                             <div class="form-group">
-                                <label for="username" class="form-label form-label-required">Username</label>
-                                <input type="text" id="username" name="username" class="form-input @error('username') error @enderror" 
-                                       value="{{ old('username', $user->username) }}" required>
-                                @error('username')
-                                    <p class="form-error">{{ $message }}</p>
-                                @enderror
+                                <label for="username" class="form-label">Nama Lengkap</label>
+                                @if($userRoleName == 'Wali Murid')
+                                    {{-- Wali Murid can edit --}}
+                                    <input type="text" id="username" name="username" 
+                                           class="form-input @error('username') error @enderror" 
+                                           value="{{ old('username', $user->username) }}" required>
+                                    @error('username')
+                                        <p class="form-error">{{ $message }}</p>
+                                    @enderror
+                                    <p class="form-help">Nama yang digunakan untuk login dan ditampilkan di sistem.</p>
+                                @else
+                                    {{-- Other roles: readonly --}}
+                                    <input type="text" value="{{ $user->username }}" 
+                                           class="form-input bg-gray-50 cursor-not-allowed" readonly disabled>
+                                    <p class="form-help">Nama Lengkap hanya dapat diubah oleh Operator Sekolah.</p>
+                                @endif
                             </div>
 
                             {{-- Phone --}}

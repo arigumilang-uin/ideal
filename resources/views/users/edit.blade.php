@@ -62,18 +62,36 @@
                     </h4>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {{-- Nama Pengenal (auto-generated, readonly display) --}}
+                        <div class="form-group">
+                            <label class="form-label">Nama Pengenal (Otomatis)</label>
+                            <div class="form-input bg-slate-50 text-slate-600 cursor-not-allowed">{{ $user->nama }}</div>
+                            <p class="form-help">Dibuat otomatis berdasarkan role & penempatan.</p>
+                        </div>
+                        
                         <x-forms.input 
                             name="username" 
-                            label="Username" 
+                            label="Nama Lengkap" 
                             :value="$user->username"
                             required 
+                            help="Nama asli user (bisa dengan gelar). Untuk login & ditampilkan."
                         />
-                        
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                         <x-forms.input 
                             type="email" 
                             name="email" 
                             label="Email" 
                             :value="$user->email"
+                            help="Opsional, untuk reset password & login Google."
+                        />
+                        
+                        <x-forms.input 
+                            name="phone" 
+                            label="No. Telepon" 
+                            :value="$user->phone"
+                            placeholder="08xxxxxxxxxx" 
                         />
                     </div>
                     
@@ -239,24 +257,13 @@
                     </div>
                 </div>
                 
-                {{-- Phone & Status --}}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="form-group">
-                        <x-forms.input 
-                            name="phone" 
-                            label="No. Telepon" 
-                            :value="$user->phone"
-                            placeholder="08xxxxxxxxxx" 
-                        />
-                    </div>
-                    
-                    <div class="form-group flex items-end">
-                        <label class="flex items-center gap-3 cursor-pointer p-3 bg-gray-50 rounded-lg w-full">
-                            <input type="checkbox" name="is_active" value="1" {{ old('is_active', $user->is_active) ? 'checked' : '' }}
-                                   class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                            <span class="text-sm text-gray-700">Akun Aktif</span>
-                        </label>
-                    </div>
+                {{-- Status --}}
+                <div class="flex items-center">
+                    <label class="flex items-center gap-3 cursor-pointer p-3 bg-gray-50 rounded-lg">
+                        <input type="checkbox" name="is_active" value="1" {{ old('is_active', $user->is_active) ? 'checked' : '' }}
+                               class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Akun Aktif</span>
+                    </label>
                 </div>
                 
                 {{-- User Info --}}

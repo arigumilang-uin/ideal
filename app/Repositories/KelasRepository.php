@@ -45,13 +45,14 @@ class KelasRepository
     }
     
     /**
-     * Get available wali kelas users
+     * Get available users for wali kelas selection
+     * RULE: All users EXCEPT Wali Murid can be assigned as Wali Kelas
      */
     public function getAvailableWaliKelas(): Collection
     {
         return User::whereHas('role', function($q) {
-            $q->where('nama_role', 'Wali Kelas');
-        })->get();
+            $q->where('nama_role', '!=', 'Wali Murid');
+        })->orderBy('username')->get();
     }
     
     /**

@@ -109,11 +109,6 @@ class KelasService
             'nama_kelas' => $namaKelas,
         ]);
         
-        // STEP 8: Auto-create Wali Kelas user if requested
-        if ($data->create_wali) {
-            $this->createWaliKelasUser($kelas, $jurusan, $kode, $next);
-        }
-        
         return [
             'kelas' => $kelas,
             'nama_kelas' => $namaKelas,
@@ -169,18 +164,8 @@ class KelasService
             'wali_kelas_user_id' => $data->wali_kelas_user_id,
         ]);
         
-        // Refresh to get updated data
-        $kelas->refresh();
-        
-        // STEP 3: Sync wali kelas user if relevant fields changed (lines 163-196)
-        if (($kelas->nama_kelas !== $oldNama) || 
-            ($kelas->tingkat !== $oldTingkat) || 
-            ($kelas->jurusan_id !== $oldJurusanId)) {
-            
-            if ($kelas->wali_kelas_user_id) {
-                $this->updateWaliKelasUser($kelas);
-            }
-        }
+        // Nama wali kelas dihandle otomatis oleh KelasObserver
+        // saat wali_kelas_user_id atau nama_kelas berubah
         
         return $kelas->fresh();
     }
@@ -346,118 +331,5 @@ class KelasService
         
         return $next;
     }
-    
-    /**
-     * Create Wali Kelas user for kelas
-     * 
-     * EXACT LOGIC from KelasController::store() (lines 93-126)
-     * 
-     * @param Kelas $kelas
-     * @param Jurusan $jurusan
-     * @param string $kode
-     * @param int $next Sequential number
-     * @return User
-     */
-    private function createWaliKelasUser(Kelas $kelas, Jurusan $jurusan, string $kode, int $next): User
-    {
-        // STEP 1: Generate username components (lines 95-101)
-        $tingkat = Str::lower($kelas->tingkat);
-        $kodeSafe = preg_replace('/[^a-z0-9]+/i', '', (string) $kode);
-        $kodeSafe = Str::lower($kodeSafe);
-        
-        if ($kodeSafe === '') {
-            $kodeSafe = Str::lower($this->generateKode($jurusan->nama_jurusan));
-        }
-        
-        $nomor = $next; // seq yang sudah dihitung
-        
-        // STEP 2: Generate unique username (lines 102-108)
-        $baseUsername = "walikelas.{$tingkat}.{$kodeSafe}{$nomor}";
-        $username = $baseUsername;
-        $i = 1;
-        
-        while (User::where('username', $username)->exists()) {
-            $i++;
-            $username = $baseUsername . $i;
-        }
-        
-        // STEP 3: Generate password (line 111)
-        // Standardized password
-        $password = 'smkn1.walikelas.' . $tingkat . $kodeSafe . $nomor;
-        
-        // STEP 4: Find Wali Kelas role (line 112)
-        $role = Role::findByName('Wali Kelas');
-        
-        // STEP 5: Create user (lines 113-119)
-        $user = User::create([
-            'role_id' => $role?->id,
-            'nama' => 'Wali Kelas ' . $kelas->nama_kelas,
-            'username' => $username,
-            // Email: NULL - akun auto-generated tidak perlu email palsu
-            'password' => $password,
-        ]);
-        
-        // STEP 6: Link user to kelas (lines 122-123)
-        $kelas->wali_kelas_user_id = $user->id;
-        $kelas->save();
-        
-        // STEP 7: Flash credentials for operator (line 125)
-        session()->flash('wali_created', [
-            'username' => $username,
-            'password' => $password
-        ]);
-        
-        return $user;
-    }
-    
-    /**
-     * Update Wali Kelas user when kelas changes
-     * 
-     * EXACT LOGIC from KelasController::update() (lines 165-194)
-     * 
-     * @param Kelas $kelas
-     * @return void
-     */
-    private function updateWaliKelasUser(Kelas $kelas): void
-    {
-        $wali = User::find($kelas->wali_kelas_user_id);
-        
-        if (!$wali) {
-            return;
-        }
-        
-        // STEP 1: Get jurusan and kode (lines 168-169)
-        $jurusan = $kelas->jurusan()->first();
-        $kode = $jurusan?->kode_jurusan ?? '';
-        
-        // STEP 2: Extract nomor suffix from nama_kelas (lines 172-175)
-        $nomor = 1;
-        if (preg_match('/\s(\d+)$/', $kelas->nama_kelas, $m)) {
-            $nomor = intval($m[1]);
-        }
-        
-        // STEP 3: Generate username components (lines 177-182)
-        $tingkat = Str::lower($kelas->tingkat);
-        $kodeSafe = preg_replace('/[^a-z0-9]+/i', '', (string) $kode);
-        $kodeSafe = Str::lower($kodeSafe);
-        
-        if ($kodeSafe === '') {
-            $kodeSafe = Str::lower($this->generateKode($jurusan->nama_jurusan ?? ''));
-        }
-        
-        // STEP 4: Generate new unique username (lines 183-189)
-        $baseUsername = "walikelas.{$tingkat}.{$kodeSafe}{$nomor}";
-        $newUsername = $baseUsername;
-        $i = 1;
-        
-        while (User::where('username', $newUsername)->where('id', '!=', $wali->id)->exists()) {
-            $i++;
-            $newUsername = $baseUsername . $i;
-        }
-        
-        // STEP 5: Update wali user (lines 191-193)
-        $wali->username = $newUsername;
-        $wali->nama = 'Wali Kelas ' . $kelas->nama_kelas;
-        $wali->save();
-    }
 }
+

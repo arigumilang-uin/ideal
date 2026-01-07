@@ -150,33 +150,9 @@
                             :options="$waliList ?? []"
                             optionValue="id"
                             optionLabel="username"
-                            placeholder="-- Pilih dari Daftar Guru --"
-                            help="Kosongkan jika ingin menambah nanti."
+                            placeholder="-- Pilih dari Daftar User --"
+                            help="Pilih user yang akan menjadi wali kelas. Kosongkan jika ingin menambah nanti."
                         />
-                    </div>
-
-                    {{-- Create New Wali Option --}}
-                    <div class="bg-blue-50/50 rounded-lg p-4 border border-blue-100">
-                        <label class="flex items-start gap-3 cursor-pointer">
-                            <input type="checkbox" name="create_wali" value="1" x-model="createWali" 
-                                class="mt-1 w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
-                            <div>
-                                <span class="block font-medium text-sm text-gray-900">Buat akun Wali Kelas baru otomatis</span>
-                                <span class="block text-xs text-gray-500 mt-0.5">Sistem akan membuatkan akun login khusus untuk wali kelas ini.</span>
-                            </div>
-                        </label>
-
-                        {{-- Preview Credentials --}}
-                        <div x-show="createWali" x-transition class="mt-4 pl-7">
-                            <div class="alert-box">
-                                <x-ui.icon name="key" size="18" class="alert-box-icon" />
-                                <div class="alert-box-content">
-                                    <h4>Format Akun Otomatis</h4>
-                                    <p class="font-mono text-xs mb-1">Username: walikelas.[tingkat].[kode][no]</p>
-                                    <p class="font-mono text-xs">Password: smkn1.walikelas.[kode]...</p>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>

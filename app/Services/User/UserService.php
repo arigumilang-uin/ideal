@@ -55,33 +55,20 @@ class UserService
         try {
             // Validate role exists
             $role = Role::findOrFail($data['role_id']);
+            $guruRole = Role::where('nama_role', 'Guru')->first();
 
-            // Create temporary user object for auto-naming
-            $tempUser = new \App\Models\User();
-            $tempUser->role_id = $data['role_id'];
-            $tempUser->role = $role;
+            // Username: Gunakan dari input user
+            $username = $data['username'];
             
-            // Handle role-specific pre-assignments for naming
-            if ($role->nama_role === 'Wali Kelas' && isset($data['kelas_id'])) {
-                $tempUser->kelas_diampu_id = $data['kelas_id'];
-                $tempUser->load('kelasDiampu');
-            }
-            
-            if ($role->nama_role === 'Kaprodi' && isset($data['jurusan_id'])) {
-                $tempUser->jurusan_diampu_id = $data['jurusan_id'];
-                $tempUser->load('jurusanDiampu');
-            }
-
-            // Auto-generate nama and username using naming service
-            $nama = UserNamingService::generateNama($tempUser);
-            $username = UserNamingService::generateUsername($tempUser);
+            // Generate nama awal berdasarkan role (akan diupdate oleh observer jika ada assignment)
+            $nama = $role->nama_role;
 
             // Siapkan data untuk disimpan
             $userData = [
                 'role_id' => $data['role_id'],
                 'nama' => $nama,
                 'username' => $username,
-                'email' => $data['email'],
+                'email' => $data['email'] ?? null,
                 'phone' => $data['phone'] ?? null,
                 'nip' => $data['nip'] ?? null,
                 'nuptk' => $data['nuptk'] ?? null,
@@ -92,17 +79,41 @@ class UserService
             // Create via repository
             $createdUser = $this->userRepo->create($userData);
 
-            // Handle role-specific assignments
+            // Handle role-specific assignments - USING ELOQUENT TO TRIGGER OBSERVERS
+            
+            // WALI KELAS - Assign to Kelas
             if ($role->nama_role === 'Wali Kelas' && isset($data['kelas_id'])) {
-                \App\Models\Kelas::where('id', $data['kelas_id'])
-                    ->update(['wali_kelas_user_id' => $createdUser->id]);
+                $kelas = \App\Models\Kelas::find($data['kelas_id']);
+                if ($kelas) {
+                    // Simpan old wali untuk demote ke guru
+                    $oldWaliId = $kelas->wali_kelas_user_id;
+                    
+                    // Assign new wali - this triggers KelasObserver
+                    $kelas->wali_kelas_user_id = $createdUser->id;
+                    $kelas->save();
+                    
+                    // Update nama user sesuai kelas
+                    $createdUser->updateQuietly(['nama' => "Wali Kelas {$kelas->nama_kelas}"]);
+                }
             }
 
+            // KAPRODI - Assign to Jurusan
             if ($role->nama_role === 'Kaprodi' && isset($data['jurusan_id'])) {
-                \App\Models\Jurusan::where('id', $data['jurusan_id'])
-                    ->update(['kaprodi_user_id' => $createdUser->id]);
+                $jurusan = \App\Models\Jurusan::find($data['jurusan_id']);
+                if ($jurusan) {
+                    // Simpan old kaprodi untuk demote ke guru
+                    $oldKaprodiId = $jurusan->kaprodi_user_id;
+                    
+                    // Assign new kaprodi - this triggers JurusanObserver
+                    $jurusan->kaprodi_user_id = $createdUser->id;
+                    $jurusan->save();
+                    
+                    // Update nama user sesuai jurusan
+                    $createdUser->updateQuietly(['nama' => "Kaprodi {$jurusan->nama_jurusan}"]);
+                }
             }
 
+            // WALI MURID - Assign to Siswa
             if ($role->nama_role === 'Wali Murid' && isset($data['siswa_ids']) && is_array($data['siswa_ids'])) {
                 \App\Models\Siswa::whereIn('id', $data['siswa_ids'])
                     ->update(['wali_murid_user_id' => $createdUser->id]);
@@ -285,8 +296,8 @@ class UserService
      * Assign user to kelas (for Wali Kelas/Developer roles).
      * 
      * LOGIC:
-     * - Unassign current wali kelas from target kelas (if any)
-     * - Assign this user as wali kelas
+     * - Uses Eloquent save() to trigger KelasObserver
+     * - Observer handles: demote old wali to Guru, promote new user to Wali Kelas
      * 
      * @param int $userId
      * @param int $kelasId
@@ -297,9 +308,13 @@ class UserService
         DB::beginTransaction();
         
         try {
-            // Update kelas to set this user as wali kelas
-            \App\Models\Kelas::where('id', $kelasId)
-                ->update(['wali_kelas_user_id' => $userId]);
+            $kelas = \App\Models\Kelas::find($kelasId);
+            
+            if ($kelas) {
+                // Use Eloquent save() to trigger KelasObserver
+                $kelas->wali_kelas_user_id = $userId;
+                $kelas->save();
+            }
             
             DB::commit();
         } catch (\Exception $e) {
@@ -312,8 +327,8 @@ class UserService
      * Assign user to jurusan (for Kaprodi/Developer roles).
      * 
      * LOGIC:
-     * - Unassign current kaprodi from target jurusan (if any)
-     * - Assign this user as kaprodi
+     * - Uses Eloquent save() to trigger JurusanObserver
+     * - Observer handles: demote old kaprodi to Guru, promote new user to Kaprodi
      * 
      * @param int $userId
      * @param int $jurusanId
@@ -324,9 +339,13 @@ class UserService
         DB::beginTransaction();
         
         try {
-            // Update jurusan to set this user as kaprodi
-            \App\Models\Jurusan::where('id', $jurusanId)
-                ->update(['kaprodi_user_id' => $userId]);
+            $jurusan = \App\Models\Jurusan::find($jurusanId);
+            
+            if ($jurusan) {
+                // Use Eloquent save() to trigger JurusanObserver
+                $jurusan->kaprodi_user_id = $userId;
+                $jurusan->save();
+            }
             
             DB::commit();
         } catch (\Exception $e) {
