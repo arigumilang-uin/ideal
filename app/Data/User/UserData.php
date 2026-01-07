@@ -15,9 +15,9 @@ class UserData extends Data
     public function __construct(
         public ?int $id,
         public int $role_id,
-        public string $nama,
+        public ?string $nama = null, // NULLABLE: nama auto-generated, tidak dari form
         public string $username,
-        public string $email,
+        public ?string $email = null, // NULLABLE: email optional
         public ?string $phone = null,
         public ?string $nip = null,
         public ?string $nuptk = null,
@@ -45,9 +45,9 @@ class UserData extends Data
     public static function rules(): array
     {
         return [
-            'nama' => ['required', 'string', 'max:255'],
-            'username' => ['required', 'string', 'max:255', 'alpha_dash'],
-            'email' => ['required', 'email', 'max:255'],
+            'nama' => ['nullable', 'string', 'max:255'], // NULLABLE: auto-generated
+            'username' => ['required', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:20'],
             'nip' => ['nullable', 'string', 'max:50'],
             'nuptk' => ['nullable', 'string', 'max:50'],

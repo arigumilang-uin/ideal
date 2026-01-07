@@ -285,7 +285,8 @@ class JurusanService
     /**
      * Update Kaprodi user when jurusan changes
      * 
-     * EXACT LOGIC from JurusanController::update() (lines 168-188)
+     * UPDATED 2026-01-07: Username TIDAK diubah otomatis lagi
+     * Hanya nama yang diupdate sesuai nama jurusan
      * 
      * @param Jurusan $jurusan
      * @return void
@@ -298,29 +299,13 @@ class JurusanService
             return;
         }
         
-        // STEP 1: Generate clean kode (lines 171-176)
-        $rawKode = $jurusan->kode_jurusan ?? $this->generateKode($jurusan->nama_jurusan);
-        $cleanKode = preg_replace('/[^a-z0-9]+/i', '', (string) $rawKode);
-        $cleanKode = Str::lower($cleanKode);
+        // Hanya update nama, TIDAK username
+        $newNama = 'Kaprodi ' . $jurusan->nama_jurusan;
         
-        if ($cleanKode === '') {
-            $cleanKode = Str::lower($this->generateKode($jurusan->nama_jurusan));
+        if ($kaprodi->nama !== $newNama) {
+            $kaprodi->nama = $newNama;
+            $kaprodi->save();
         }
-        
-        // STEP 2: Generate new unique username (lines 177-183)
-        $desiredBase = 'kaprodi.' . $cleanKode;
-        $newUsername = $desiredBase;
-        $i = 1;
-        
-        while (User::where('username', $newUsername)->where('id', '!=', $kaprodi->id)->exists()) {
-            $i++;
-            $newUsername = $desiredBase . $i;
-        }
-        
-        // STEP 3: Update username & display name (lines 185-187)
-        $kaprodi->username = $newUsername;
-        $kaprodi->nama = 'Kaprodi ' . $jurusan->nama_jurusan;
-        $kaprodi->save();
     }
     
     /**
@@ -359,7 +344,8 @@ class JurusanService
     /**
      * Update wali kelas user when kelas nama changes
      * 
-     * EXACT LOGIC from JurusanController::update() (lines 143-161)
+     * UPDATED 2026-01-07: Username TIDAK diubah otomatis lagi
+     * Hanya nama yang diupdate sesuai nama kelas
      * 
      * @param $kelas
      * @param Jurusan $jurusan
@@ -375,29 +361,13 @@ class JurusanService
             return;
         }
         
-        // STEP 1: Generate clean kode (lines 145-150)
-        $tingkatShort = Str::lower($kelas->tingkat);
-        $kodeSafe = preg_replace('/[^a-z0-9]+/i', '', (string) $newKode);
-        $kodeSafe = Str::lower($kodeSafe);
+        // Hanya update nama, TIDAK username
+        $newNama = 'Wali Kelas ' . $kelas->nama_kelas;
         
-        if ($kodeSafe === '') {
-            $kodeSafe = Str::lower($this->generateKode($jurusan->nama_jurusan));
+        if ($wali->nama !== $newNama) {
+            $wali->nama = $newNama;
+            $wali->save();
         }
-        
-        // STEP 2: Generate new unique username (lines 151-157)
-        $baseWaliUsername = "walikelas.{$tingkatShort}.{$kodeSafe}{$seq}";
-        $newWaliUsername = $baseWaliUsername;
-        $j = 1;
-        
-        while (User::where('username', $newWaliUsername)->where('id', '!=', $wali->id)->exists()) {
-            $j++;
-            $newWaliUsername = $baseWaliUsername . $j;
-        }
-        
-        // STEP 3: Update wali user (lines 158-160)
-        $wali->username = $newWaliUsername;
-        $wali->nama = 'Wali Kelas ' . $kelas->nama_kelas;
-        $wali->save();
     }
     
     /**

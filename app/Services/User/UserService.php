@@ -164,15 +164,19 @@ class UserService
                 Role::findOrFail($data->role_id);
             }
 
-            // Siapkan data untuk update
+            // Siapkan data untuk update (hanya field yang diisi)
             $updateData = [
-                'nama' => $data->nama,
                 'email' => $data->email,
                 'phone' => $data->phone,
                 'nip' => $data->nip,
                 'nuptk' => $data->nuptk,
                 'is_active' => $data->is_active,
             ];
+            
+            // Nama hanya di-update jika diisi (karena auto-generated, biasanya null dari form)
+            if ($data->nama) {
+                $updateData['nama'] = $data->nama;
+            }
 
             // Update role jika ada
             if ($data->role_id) {
