@@ -20,27 +20,7 @@
         </a>
     </div>
 
-    {{-- Wali Created Info --}}
-    @if(session('wali_created'))
-        @php $w = session('wali_created'); @endphp
-        <div class="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-            <h4 class="text-indigo-700 font-bold flex items-center gap-2 mb-3">
-                <x-ui.icon name="user-check" size="18" />
-                Akun Wali Kelas Baru Dibuat
-            </h4>
-            <div class="flex flex-wrap gap-4">
-                <div class="bg-white p-3 rounded-lg border border-indigo-100 flex-1 min-w-[150px]">
-                    <span class="text-xs text-indigo-400 uppercase font-bold">Username</span>
-                    <div class="font-mono text-indigo-900 font-bold text-lg">{{ $w['username'] }}</div>
-                </div>
-                <div class="bg-white p-3 rounded-lg border border-indigo-100 flex-1 min-w-[150px]">
-                    <span class="text-xs text-indigo-400 uppercase font-bold">Password</span>
-                    <div class="font-mono text-rose-600 font-bold text-lg">{{ $w['password'] }}</div>
-                </div>
-            </div>
-            <p class="text-xs text-indigo-500 mt-3 italic">* Harap simpan kredensial ini.</p>
-        </div>
-    @endif
+    {{-- Auto-create wali kelas DIHAPUS - wali kelas harus dibuat manual via halaman User --}}
 
     {{-- Bulk Action Toolbar --}}
     <div x-show="selected.length > 0" x-transition x-cloak class="bg-indigo-50 p-3 flex flex-col sm:flex-row justify-between items-center gap-3 rounded-xl border border-indigo-100 shadow-sm">

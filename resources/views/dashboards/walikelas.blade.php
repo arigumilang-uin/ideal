@@ -40,11 +40,11 @@
 @endphp
 
 <div class="space-y-6" x-data="analyticsDashboard({{ $jsonData }})">
-    {{-- Class Info Banner --}}
+    {{-- Welcome Banner --}}
     <x-dashboard.banner 
         variant="primary" 
-        title="{{ $kelas->nama_kelas ?? 'Belum ada kelas' }}" 
-        subtitle="{{ $kelas->jurusan->nama_jurusan ?? '' }}"
+        title="Halo, {{ Auth::user()->username }}! 👋" 
+        subtitle="Selamat bekerja, silahkan monitoring data siswa di kelas {{ $kelas->nama_kelas ?? 'Belum ada kelas' }}"
         badge="Wali Kelas Panel"
     >
         <a href="{{ route('siswa.index') }}" class="btn bg-white/10 backdrop-blur-md text-white border border-white/20 hover:bg-white/20 shadow-lg group">

@@ -11,13 +11,13 @@
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+-   [Simple, fast routing engine](https://laravel.com/docs/routing).
+-   [Powerful dependency injection container](https://laravel.com/docs/container).
+-   Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
+-   Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
+-   Database agnostic [schema migrations](https://laravel.com/docs/migrations).
+-   [Robust background job processing](https://laravel.com/docs/queues).
+-   [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
 
 Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
@@ -33,14 +33,14 @@ We would like to extend our thanks to the following sponsors for funding Laravel
 
 ### Premium Partners
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+-   **[Vehikl](https://vehikl.com)**
+-   **[Tighten Co.](https://tighten.co)**
+-   **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
+-   **[64 Robots](https://64robots.com)**
+-   **[Curotec](https://www.curotec.com/services/technologies/laravel)**
+-   **[DevSquad](https://devsquad.com/hire-laravel-developers)**
+-   **[Redberry](https://redberry.international/laravel-development)**
+-   **[Active Logic](https://activelogic.com)**
 
 ## Contributing
 
@@ -57,42 +57,3 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-
-## Developer role (development only)
-
-This project includes a convenience `Developer` role to help development and QA. Use it carefully:
-
-- To create/assign a developer account set these in your `.env` (optional):
-
-```
-DEV_ADMIN_EMAIL=dev@yourdomain.test
-DEV_ADMIN_PASSWORD=strongpassword
-```
-
-Then run:
-
-```bash
-php artisan db:seed --class=Database\\Seeders\\DeveloperRoleSeeder
-```
-
-The seeder is safe and will not overwrite existing users' roles. If `DEV_ADMIN_EMAIL` is not set, a local account `developer@local` will be created.
-
-- Developer bypass is only allowed in non-production environments (middleware enforces `APP_ENV != production`).
-
-- Before deploying to production, remove developer accounts and/or the Developer role using the artisan cleanup command:
-
-```bash
-# Unassign Developer role from users
-php artisan developer:cleanup --unassign
-
-# Or delete developer users (use with caution)
-php artisan developer:cleanup --delete-users
-
-# After unassigning/deleting users, optionally remove the role record
-php artisan developer:cleanup --remove-role
-```
-
-Keep this workflow in your project notes and ensure `Developer` role is not present in production.
-
-contoh untuk membuat akun dengan role developer:
-php artisan developer:enable --email=developer@local --password=password

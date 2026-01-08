@@ -148,75 +148,37 @@ class UserNamingService
     }
 
     /**
-     * Generate password otomatis berdasarkan role dan konfigurasi.
+     * Generate password otomatis HANYA untuk Wali Murid.
+     * 
+     * UPDATED 2026-01-08: Password auto-generate HANYA untuk Wali Murid
+     * Role lain harus input password manual saat create user.
      * 
      * @param User $user User yang akan di-generate passwordnya
-     * @return string Password yang di-generate (plain text, belum di-hash)
+     * @return string|null Password yang di-generate (plain text), atau null jika tidak auto-generate
      */
-    public static function generatePassword(User $user): string
+    public static function generatePassword(User $user): ?string
     {
         $roleName = $user->role?->nama_role ?? '';
 
-        switch ($roleName) {
-            case 'Kepala Sekolah':
-                return 'smkn1.kepalasekolah';
-
-            case 'Waka Kesiswaan':
-                return 'smkn1.wakakesiswaan';
-
-            case 'Kaprodi':
-                $jurusan = $user->jurusanDiampu;
-                if ($jurusan) {
-                    $kodeJurusan = preg_replace('/[^a-z0-9]+/i', '', $jurusan->kode_jurusan ?? $jurusan->nama_jurusan);
-                    $kodeJurusan = Str::lower($kodeJurusan);
-                    return 'smkn1.kaprodi.' . $kodeJurusan;
+        // HANYA Wali Murid yang dapat auto-generate password
+        if ($roleName === 'Wali Murid') {
+            // Password = "smkn1.walimurid.{nomor_hp}" (lebih mudah diingat)
+            $anakWali = $user->anakWali()->orderBy('id')->first();
+            if ($anakWali && $anakWali->nomor_hp_wali_murid) {
+                $phoneClean = preg_replace('/\D+/', '', $anakWali->nomor_hp_wali_murid);
+                if ($phoneClean !== '') {
+                    return 'smkn1.walimurid.' . $phoneClean;
                 }
-                return 'smkn1.kaprodi';
-
-            case 'Wali Kelas':
-                $kelas = $user->kelasDiampu;
-                if ($kelas) {
-                    $namaKelas = $kelas->nama_kelas;
-                    $parts = explode(' ', $namaKelas);
-                    $tingkat = Str::lower($parts[0] ?? 'x');
-                    
-                    $jurusan = $kelas->jurusan;
-                    $kode = preg_replace('/[^a-z0-9]+/i', '', $jurusan->kode_jurusan ?? $jurusan->nama_jurusan ?? '');
-                    $kode = Str::lower($kode);
-                    
-                    $nomor = '';
-                    if (count($parts) > 1) {
-                        $lastPart = end($parts);
-                        if (is_numeric($lastPart)) {
-                            $nomor = $lastPart;
-                        }
-                    }
-                    
-                    return 'smkn1.walikelas.' . $tingkat . $kode . $nomor;
-                }
-                return 'smkn1.walikelas';
-
-            case 'Wali Murid':
-                // Password = "smkn1.walimurid.{nomor_hp}" (lebih mudah diingat)
-                $anakWali = $user->anakWali()->orderBy('id')->first();
-                if ($anakWali && $anakWali->nomor_hp_wali_murid) {
-                    $phoneClean = preg_replace('/\D+/', '', $anakWali->nomor_hp_wali_murid);
-                    if ($phoneClean !== '') {
-                        return 'smkn1.walimurid.' . $phoneClean;
-                    }
-                }
-                // Fallback to phone from user if available
-                if ($user->phone) {
-                    return 'smkn1.walimurid.' . $user->phone;
-                }
-                return 'smkn1.walimurid';
-
-            case 'Guru':
-                return 'smkn1.guru';
-
-            default:
-                return 'smkn1.user';
+            }
+            // Fallback to phone from user if available
+            if ($user->phone) {
+                return 'smkn1.walimurid.' . $user->phone;
+            }
+            return 'smkn1.walimurid';
         }
+
+        // Role lain: TIDAK auto-generate password
+        return null;
     }
 
     /**

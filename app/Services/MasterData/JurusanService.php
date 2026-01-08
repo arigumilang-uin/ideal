@@ -53,7 +53,7 @@ class JurusanService
      */
     public function createJurusan(JurusanData $data): Jurusan
     {
-        // STEP 1: Generate kode_jurusan if empty (lines 40-50)
+        // STEP 1: Generate kode_jurusan if empty
         $kodeJurusan = $data->kode_jurusan;
         
         if (empty($kodeJurusan)) {
@@ -61,17 +61,14 @@ class JurusanService
             $kodeJurusan = $this->jurusanRepository->generateUniqueKode($baseKode);
         }
         
-        // STEP 2: Create jurusan (line 53)
+        // STEP 2: Create jurusan
         $jurusan = $this->jurusanRepository->create([
             'nama_jurusan' => $data->nama_jurusan,
             'kode_jurusan' => $kodeJurusan,
             'kaprodi_user_id' => $data->kaprodi_user_id,
         ]);
         
-        // STEP 3: Auto-create Kaprodi if requested (lines 56-88)
-        if ($data->create_kaprodi) {
-            $this->createKaprodiUser($jurusan);
-        }
+        // Auto-create kaprodi DIHAPUS - kaprodi harus dibuat manual via halaman User
         
         return $jurusan;
     }
@@ -111,20 +108,16 @@ class JurusanService
             
             $newKode = $jurusan->kode_jurusan;
             
-            // STEP 3: Propagate kode changes to kelas (lines 132-165)
+            // STEP 3: Propagate kode changes to kelas
             if ($newKode !== $oldKode) {
                 $this->propagateKodeChangeToKelas($jurusan, $newKode);
             }
             
-            // STEP 4: Update Kaprodi user if exists (lines 168-188)
+            // STEP 4: Update Kaprodi name if exists (nama only, not username)
             if ($jurusan->kaprodi_user_id) {
                 $this->updateKaprodiUser($jurusan);
-            } else {
-                // STEP 5: Create Kaprodi if requested during update (lines 191-220)
-                if ($data->create_kaprodi) {
-                    $this->createKaprodiUser($jurusan, true); // true = from update
-                }
             }
+            // Auto-create kaprodi DIHAPUS - kaprodi harus dibuat manual via halaman User
         });
         
         return $jurusan->fresh();
@@ -223,64 +216,7 @@ class JurusanService
         return $letters;
     }
     
-    /**
-     * Create Kaprodi user for jurusan
-     * 
-     * EXACT LOGIC from JurusanController (lines 56-88 for store, 192-219 for update)
-     * 
-     * @param Jurusan $jurusan
-     * @param bool $fromUpdate
-     * @return User
-     */
-    private function createKaprodiUser(Jurusan $jurusan, bool $fromUpdate = false): User
-    {
-        // STEP 1: Generate clean kode (lines 57-62, 193-196)
-        $kode = $jurusan->kode_jurusan ?? $this->generateKode($jurusan->nama_jurusan);
-        $cleanKode = preg_replace('/[^a-z0-9]+/i', '', (string) $kode);
-        $cleanKode = Str::lower($cleanKode);
-        
-        if ($cleanKode === '') {
-            $cleanKode = Str::lower($this->generateKode($jurusan->nama_jurusan));
-        }
-        
-        // STEP 2: Generate unique username (lines 63-69, 198-204)
-        $baseUsername = 'kaprodi.' . $cleanKode;
-        $username = $baseUsername;
-        $i = 1;
-        
-        while (User::where('username', $username)->exists()) {
-            $i++;
-            $username = $baseUsername . $i;
-        }
-        
-        // STEP 3: Generate password
-        // STANDARDIZED: Always use predictable format (consistent for all conditions)
-        $password = 'smkn1.kaprodi.' . $cleanKode;
-        
-        // STEP 4: Find Kaprodi role (lines 73, 208)
-        $role = Role::findByName('Kaprodi');
-        
-        // STEP 5: Create user (lines 74-80, 209-215)
-        $user = User::create([
-            'role_id' => $role?->id,
-            'nama' => 'Kaprodi ' . $jurusan->nama_jurusan,
-            'username' => $username,
-            // Email: NULL - akun auto-generated tidak perlu email palsu
-            'password' => $password,
-        ]);
-        
-        // STEP 6: Link user to jurusan (lines 83-84, 217-218)
-        $jurusan->kaprodi_user_id = $user->id;
-        $jurusan->save();
-        
-        // STEP 7: Flash credentials for operator (lines 87, 219)
-        session()->flash('kaprodi_created', [
-            'username' => $username,
-            'password' => $password
-        ]);
-        
-        return $user;
-    }
+    // createKaprodiUser DIHAPUS - kaprodi harus dibuat manual via halaman User
     
     /**
      * Update Kaprodi user when jurusan changes
