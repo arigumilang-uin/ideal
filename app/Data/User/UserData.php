@@ -35,6 +35,11 @@ class UserData extends Data
         public ?object $role = null,
         public ?object $kelasDiampu = null,
         public ?object $jurusanDiampu = null,
+
+        // Input assignments (optional, for create/update)
+        public ?int $kelas_id = null,
+        public ?int $jurusan_id = null,
+        public ?array $siswa_ids = null,
     ) {}
 
     /**

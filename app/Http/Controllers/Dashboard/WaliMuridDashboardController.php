@@ -3,55 +3,68 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use App\Services\Dashboard\DashboardService;
+use App\Services\Pelanggaran\PelanggaranService;
 use App\Models\RiwayatPelanggaran;
 use App\Models\TindakLanjut;
+use App\Models\PembinaanStatus;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+use Illuminate\Support\Facades\Auth;
 
+/**
+ * Wali Murid Dashboard Controller
+ * 
+ * PERAN: Kurir (Courier)
+ * - Menerima HTTP Request
+ * - Panggil Service untuk data
+ * - Return View
+ * 
+ * @package App\Http\Controllers\Dashboard
+ */
 class WaliMuridDashboardController extends Controller
 {
-    public function index(Request $request)
+    public function __construct(
+        private DashboardService $dashboardService,
+        private PelanggaranService $pelanggaranService
+    ) {}
+
+    /**
+     * Display Wali Murid dashboard.
+     */
+    public function index(Request $request): View
     {
-        // 1. Ambil User Wali Murid yang login
         $user = Auth::user();
 
-        // 2. Ambil SEMUA Data Anak (HasMany)
-        $semuaAnak = $user->anakWali; // Ini sekarang me-return Collection (List)
+        // Get all anak linked to this wali murid
+        $semuaAnak = $user->anakWali;
 
-        // Cek jika belum ada anak yang di-link ke akun ini
         if ($semuaAnak->isEmpty()) {
             return view('dashboards.wali_murid_no_data');
         }
 
-        // 3. LOGIKA PEMILIHAN ANAK (SWITCH CHILD)
+        // Handle anak selection (child switch)
         $selectedSiswaId = $request->query('siswa_id');
-        
-        if ($selectedSiswaId) {
-            $siswaAktif = $semuaAnak->where('id', $selectedSiswaId)->first();
-            if (!$siswaAktif) {
-                $siswaAktif = $semuaAnak->first();
-            }
-        } else {
-            $siswaAktif = $semuaAnak->first();
-        }
+        $siswaAktif = $selectedSiswaId
+            ? $semuaAnak->firstWhere('id', $selectedSiswaId) ?? $semuaAnak->first()
+            : $semuaAnak->first();
 
-        // 4. Ambil Statistik Poin (FIXED: Use PelanggaranService)
-        $pelanggaranService = app(\App\Services\Pelanggaran\PelanggaranService::class);
-        $totalPoin = $pelanggaranService->calculateTotalPoin($siswaAktif->id);
+        // Get statistics from services
+        $totalPoin = $this->pelanggaranService->calculateTotalPoin($siswaAktif->id);
 
-        // 5. Ambil Riwayat Pelanggaran (Anak Aktif)
+        // Get riwayat pelanggaran
         $riwayat = RiwayatPelanggaran::with('jenisPelanggaran')
             ->where('siswa_id', $siswaAktif->id)
             ->orderByDesc('tanggal_kejadian')
             ->get();
 
-        // 6. Ambil Kasus / Sanksi (Anak Aktif)
+        // Get kasus/sanksi
         $kasus = TindakLanjut::where('siswa_id', $siswaAktif->id)
             ->orderByDesc('created_at')
             ->get();
 
-        // 7. Ambil Pembinaan Aktif (jika ada)
-        $pembinaanAktif = \App\Models\PembinaanStatus::forSiswa($siswaAktif->id)
+        // Get active pembinaan
+        $pembinaanAktif = PembinaanStatus::forSiswa($siswaAktif->id)
             ->active()
             ->with(['rule', 'dibinaOleh'])
             ->latest()

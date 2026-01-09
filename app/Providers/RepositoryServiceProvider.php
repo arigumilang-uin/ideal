@@ -55,10 +55,23 @@ class RepositoryServiceProvider extends ServiceProvider
             \App\Repositories\TindakLanjutRepository::class
         );
 
-        // TODO: Add more repository bindings as they are created
-        // Examples:
-        // - KelasRepositoryInterface
-        // - JurusanRepositoryInterface
+        // Register Jurusan Repository
+        $this->app->bind(
+            \App\Repositories\Contracts\JurusanRepositoryInterface::class,
+            \App\Repositories\JurusanRepository::class
+        );
+
+        // Register Kelas Repository
+        $this->app->bind(
+            \App\Repositories\Contracts\KelasRepositoryInterface::class,
+            \App\Repositories\KelasRepository::class
+        );
+
+        // Register Frequency Rule Repository
+        $this->app->bind(
+            \App\Repositories\Contracts\FrequencyRuleRepositoryInterface::class,
+            \App\Repositories\FrequencyRuleRepository::class
+        );
     }
 
     /**

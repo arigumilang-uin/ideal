@@ -26,12 +26,21 @@ class PelanggaranRulesEngine
     protected $notificationService;
 
     /**
+     * @var PoinCalculationService
+     */
+    protected $poinService;
+
+    /**
      * Constructor dengan dependency injection.
      */
-    public function __construct(TindakLanjutNotificationService $notificationService)
-    {
+    public function __construct(
+        TindakLanjutNotificationService $notificationService,
+        PoinCalculationService $poinService
+    ) {
         $this->notificationService = $notificationService;
+        $this->poinService = $poinService;
     }
+
     /**
      * Konstanta tipe surat (eskalasi levels)
      */
@@ -271,120 +280,37 @@ class PelanggaranRulesEngine
      * @param int $totalPoin Total poin akumulasi siswa
      * @return array ['pembina_roles' => array, 'keterangan' => string, 'range_text' => string]
      */
+    /**
+     * Tentukan rekomendasi pembina untuk pembinaan internal berdasarkan akumulasi poin.
+     * CATATAN: Ini HANYA rekomendasi konseling, TIDAK trigger surat pemanggilan.
+     * 
+     * DEPRECATED: Delegated to PoinCalculationService (v3.0)
+     *
+     * @param int $totalPoin Total poin akumulasi siswa
+     * @return array ['pembina_roles' => array, 'keterangan' => string, 'range_text' => string]
+     */
     public function getPembinaanInternalRekomendasi(int $totalPoin): array
     {
-        // Query rules dari database (ordered by display_order)
-        $rules = \App\Models\PembinaanInternalRule::orderBy('display_order')->get();
-
-        if ($rules->isEmpty()) {
-            return [
-                'pembina_roles' => [],
-                'keterangan' => 'Tidak ada pembinaan',
-                'range_text' => 'N/A',
-            ];
-        }
-
-        // Cari rule yang match dengan total poin
-        // Logic: Cari rule terakhir yang poin_min <= totalPoin
-        $matchedRule = null;
-        
-        foreach ($rules as $rule) {
-            // Jika poin siswa >= poin_min rule ini
-            if ($totalPoin >= $rule->poin_min) {
-                // Jika rule ini punya poin_max dan poin siswa <= poin_max, match!
-                if ($rule->poin_max !== null && $totalPoin <= $rule->poin_max) {
-                    $matchedRule = $rule;
-                    break;
-                }
-                
-                // Jika rule ini open-ended (poin_max = null), match!
-                if ($rule->poin_max === null) {
-                    $matchedRule = $rule;
-                    break;
-                }
-                
-                // Jika poin siswa > poin_max rule ini, cek apakah ada rule berikutnya
-                $nextRule = $rules->where('display_order', '>', $rule->display_order)->first();
-                
-                // Jika tidak ada rule berikutnya, atau poin siswa < poin_min rule berikutnya
-                // Maka gunakan rule ini (untuk handle gap)
-                if (!$nextRule || $totalPoin < $nextRule->poin_min) {
-                    $matchedRule = $rule;
-                    break;
-                }
-            }
-        }
-
-        if (!$matchedRule) {
-            return [
-                'pembina_roles' => [],
-                'keterangan' => 'Tidak ada pembinaan',
-                'range_text' => 'N/A',
-            ];
-        }
-
-        return [
-            'pembina_roles' => $matchedRule->pembina_roles,
-            'keterangan' => $matchedRule->keterangan,
-            'range_text' => $matchedRule->getRangeText(),
-        ];
+        return $this->poinService->getPembinaanRekomendasi($totalPoin);
     }
 
     /**
      * Hitung total poin akumulasi siswa dari semua riwayat pelanggaran.
      * 
-     * UPDATED LOGIC:
-     * - For frequency-based rules: Calculate using evaluateFrequencyRules()
-     * - For legacy rules: Use poin from jenis_pelanggaran table
+     * DEPRECATED: Delegated to PoinCalculationService (v3.0)
      * 
      * @param int $siswaId
      * @return int
      */
     public function hitungTotalPoinAkumulasi(int $siswaId): int
     {
-        // Get ALL riwayat for this siswa, grouped by jenis_pelanggaran
-        $riwayat = RiwayatPelanggaran::where('siswa_id', $siswaId)
-            ->with('jenisPelanggaran.frequencyRules')
-            ->get()
-            ->groupBy('jenis_pelanggaran_id');
-
-        $totalPoin = 0;
-
-        // For each jenis pelanggaran, calculate poin based on its rules
-        foreach ($riwayat as $jenisPelanggaranId => $records) {
-            $jenisPelanggaran = $records->first()?->jenisPelanggaran;
-            
-            if (!$jenisPelanggaran) continue;
-
-            if ($jenisPelanggaran->usesFrequencyRules()) {
-                // FREQUENCY-BASED: Iterate through ALL frequencies and sum matched poin
-                // FIX: Previous logic only checked current frequency, missing cumulative poin
-                $currentFrequency = $records->count();
-                $rules = $jenisPelanggaran->frequencyRules;
-                
-                // Iterate from frequency 1 to current
-                for ($freq = 1; $freq <= $currentFrequency; $freq++) {
-                    // Check each rule if it matches this frequency
-                    foreach ($rules as $rule) {
-                        if ($rule->matchesFrequency($freq)) {
-                            $totalPoin += $rule->poin;
-                        }
-                    }
-                }
-            } else {
-                // LEGACY: Sum poin from all records (backward compatibility)
-                $totalPoin += $records->count() * $jenisPelanggaran->poin;
-            }
-        }
-
-        return $totalPoin;
+        return $this->poinService->hitungTotalPoin($siswaId);
     }
 
     /**
      * Get siswa yang perlu pembinaan berdasarkan akumulasi poin.
      * 
-     * UPDATED: Use frequency-based point calculation (hitungTotalPoinAkumulasi)
-     * Old method used simple SUM which doesn't work with frequency rules!
+     * DEPRECATED: Delegated to PoinCalculationService (v3.0)
      * 
      * @param int|null $poinMin Filter minimum poin (optional)
      * @param int|null $poinMax Filter maximum poin (optional)
@@ -392,116 +318,9 @@ class PelanggaranRulesEngine
      */
     public function getSiswaPerluPembinaan(?int $poinMin = null, ?int $poinMax = null)
     {
-        // Fetch pembinaan rules ONCE
-        $rules = \App\Models\PembinaanInternalRule::orderBy('display_order')->get();
-        
-        // Get ALL siswa yang punya riwayat pelanggaran
-        // Then calculate poin using frequency-based logic
-        $siswaIds = \App\Models\RiwayatPelanggaran::distinct()
-            ->pluck('siswa_id');
-        
-        // Calculate poin for each siswa using correct frequency logic
-        $siswaList = collect();
-        
-        foreach ($siswaIds as $siswaId) {
-            // Use the CORRECT frequency-based calculation
-            $totalPoin = $this->hitungTotalPoinAkumulasi($siswaId);
-            
-            // Skip if poin is 0
-            if ($totalPoin == 0) {
-                continue;
-            }
-            
-            // Apply poin filters
-            if ($poinMin !== null && $totalPoin < $poinMin) {
-                continue;
-            }
-            if ($poinMax !== null && $totalPoin > $poinMax) {
-                continue;
-            }
-            
-            // Get rekomendasi
-            $rekomendasi = $this->getPembinaanInternalRekomendasiOptimized($totalPoin, $rules);
-            
-            // Skip if no matching rule (no recommendation)
-            if (empty($rekomendasi['pembina_roles'])) {
-                continue;
-            }
-            
-            // Load siswa with relations
-            $siswa = Siswa::with(['kelas.jurusan', 'kelas.waliKelas'])->find($siswaId);
-            
-            if (!$siswa) {
-                continue;
-            }
-            
-            $siswaList->push([
-                'siswa' => $siswa,
-                'total_poin' => $totalPoin,
-                'rekomendasi' => $rekomendasi,
-            ]);
-        }
-        
-        return $siswaList->sortByDesc('total_poin')->values();
+        return $this->poinService->getSiswaPerluPembinaan($poinMin, $poinMax);
     }
     
-    /**
-     * OPTIMIZED VERSION: Process recommendation using pre-fetched rules collection
-     * This eliminates the N queries to pembinaan_internal_rules table
-     * 
-     * @param int $totalPoin
-     * @param \Illuminate\Support\Collection $rules Pre-fetched rules collection
-     * @return array
-     */
-    protected function getPembinaanInternalRekomendasiOptimized(int $totalPoin, $rules): array
-    {
-        if ($rules->isEmpty()) {
-            return [
-                'pembina_roles' => [],
-                'keterangan' => 'Tidak ada pembinaan',
-                'range_text' => 'N/A',
-            ];
-        }
-
-        // Cari rule yang match dengan total poin
-        $matchedRule = null;
-        
-        foreach ($rules as $rule) {
-            if ($totalPoin >= $rule->poin_min) {
-                if ($rule->poin_max !== null && $totalPoin <= $rule->poin_max) {
-                    $matchedRule = $rule;
-                    break;
-                }
-                
-                if ($rule->poin_max === null) {
-                    $matchedRule = $rule;
-                    break;
-                }
-                
-                $nextRule = $rules->where('display_order', '>', $rule->display_order)->first();
-                
-                if (!$nextRule || $totalPoin < $nextRule->poin_min) {
-                    $matchedRule = $rule;
-                    break;
-                }
-            }
-        }
-
-        if (!$matchedRule) {
-            return [
-                'pembina_roles' => [],
-                'keterangan' => 'Tidak ada pembinaan',
-                'range_text' => 'N/A',
-            ];
-        }
-
-        return [
-            'pembina_roles' => $matchedRule->pembina_roles,
-            'keterangan' => $matchedRule->keterangan,
-            'range_text' => $matchedRule->getRangeText(),
-        ];
-    }
-
     /**
      * Buat atau update TindakLanjut dan SuratPanggilan untuk siswa.
      *

@@ -6,7 +6,7 @@ use App\Data\TindakLanjut\TindakLanjutData;
 use App\Data\TindakLanjut\TindakLanjutFilterData;
 use App\Repositories\Contracts\TindakLanjutRepositoryInterface;
 use App\Repositories\Contracts\SiswaRepositoryInterface;
-use App\Services\Pelanggaran\SuratPanggilanService;
+use App\Services\TindakLanjut\SuratPanggilanService;
 use App\Enums\StatusTindakLanjut;
 use App\Jobs\SendNotificationEmail;
 use Illuminate\Pagination\LengthAwarePaginator;

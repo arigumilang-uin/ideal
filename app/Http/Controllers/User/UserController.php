@@ -84,8 +84,9 @@ class UserController extends Controller
         // Get validated data with additional fields
         $validated = $request->validated();
         
-        // Pass all data including optional kelas_id, jurusan_id, siswa_ids to service
-        $this->userService->createUser($validated);
+        // Pass all data including optional kelas_id, jurusan_id, siswa_ids to service via DTO
+        $dto = UserData::from($request->validated());
+        $this->userService->createUser($dto);
 
         return redirect()
             ->route('users.index')
@@ -126,22 +127,6 @@ class UserController extends Controller
         $userData = UserData::from($request->validated());
         
         $this->userService->updateUser($id, $userData);
-
-        // Handle role-specific assignments
-        // Kelas assignment for Wali Kelas/Developer
-        if ($request->filled('kelas_id')) {
-            $this->userService->assignKelas($id, $request->input('kelas_id'));
-        }
-        
-        // Jurusan assignment for Kaprodi/Developer
-        if ($request->filled('jurusan_id')) {
-            $this->userService->assignJurusan($id, $request->input('jurusan_id'));
-        }
-
-        // Siswa linking for Wali Murid/Developer
-        if ($request->has('siswa_ids')) {
-            $this->userService->linkSiswa($id, $request->input('siswa_ids', []));
-        }
 
         return redirect()
             ->route('users.index')

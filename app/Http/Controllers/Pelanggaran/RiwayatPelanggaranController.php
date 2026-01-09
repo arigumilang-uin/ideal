@@ -329,49 +329,27 @@ class RiwayatPelanggaranController extends Controller
      */
     public function destroy(int $riwayat): RedirectResponse
     {
-        // Panggil service untuk get riwayat
         $riwayatData = $this->pelanggaranService->getRiwayatById($riwayat);
 
-        // Manual authorization check (same logic as UpdatePelanggaranRequest)
-        $user = auth()->user();
-        
-        // ======= PROTEKSI: Cek apakah siswa memiliki kasus aktif yang sedang ditangani =======
-        $kasusAktif = \App\Models\TindakLanjut::where('siswa_id', $riwayatData->siswa_id)
-            ->where('status', 'Ditangani')
-            ->first();
-        
-        if ($kasusAktif) {
-            return back()->with('error', 
-                'TIDAK DAPAT MENGHAPUS: Siswa ini memiliki kasus yang sedang ditangani. ' .
-                'Harap selesaikan kasus terlebih dahulu sebelum menghapus riwayat pelanggaran.'
+        // Authorization via Policy
+        $this->authorize('delete', $riwayatData);
+
+        try {
+            // Panggil service
+            // Service akan validate active case, hapus record, dan reconcile
+            $this->pelanggaranService->deletePelanggaran(
+                $riwayat,
+                $riwayatData->siswa_id,
+                $riwayatData->bukti_foto_path
             );
+            
+            return redirect()
+                ->route('riwayat.index')
+                ->with('success', 'Riwayat pelanggaran berhasil dihapus.');
+
+        } catch (\App\Exceptions\BusinessValidationException $e) {
+            return back()->with('error', $e->getMessage());
         }
-        // =====================================================================================
-        
-        if (!$user->hasRole('Operator Sekolah')) {
-            if ($riwayatData->guru_pencatat_user_id !== $user->id) {
-                abort(403, 'AKSES DITOLAK: Anda hanya dapat mengelola riwayat yang Anda catat.');
-            }
-
-            if ($riwayatData->created_at) {
-                $created = \Carbon\Carbon::parse($riwayatData->created_at);
-                if (\Carbon\Carbon::now()->greaterThan($created->copy()->addDays(3))) {
-                    abort(403, 'Batas waktu hapus telah lewat (lebih dari 3 hari sejak pencatatan).');
-                }
-            }
-        }
-
-        // Panggil service
-        // Service akan: hapus file + hapus record + reconcile (deleteIfNoSurat = true)
-        $this->pelanggaranService->deletePelanggaran(
-            $riwayat,
-            $riwayatData->siswa_id,
-            $riwayatData->bukti_foto_path
-        );
-
-        return redirect()
-            ->route('riwayat.index')
-            ->with('success', 'Riwayat pelanggaran berhasil dihapus.');
     }
 
     /**

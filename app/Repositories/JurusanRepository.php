@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\Jurusan;
+use App\Repositories\Contracts\JurusanRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
@@ -11,19 +12,84 @@ use Illuminate\Database\Eloquent\Collection;
  * Purpose: Encapsulate all database operations for Jurusan
  * Pattern: Repository Pattern
  * Responsibility: Data Access ONLY (no business logic!)
+ * 
+ * @implements JurusanRepositoryInterface
  */
-class JurusanRepository
+class JurusanRepository extends BaseRepository implements JurusanRepositoryInterface
 {
     /**
-     * Get all jurusan with counts (for index)
+     * Constructor
      */
-    public function getAllWithCounts(): Collection
+    public function __construct()
+    {
+        parent::__construct(new Jurusan());
+    }
+
+    /**
+     * Get all jurusan with statistics.
+     */
+    public function getAllWithStats(): Collection
     {
         return Jurusan::withCount(['kelas', 'siswa', 'konsentrasi'])
             ->with('kaprodi')
             ->orderBy('nama_jurusan')
             ->get();
     }
+
+    /**
+     * Get jurusan with kelas relation.
+     */
+    public function getWithKelas(int $id): ?Jurusan
+    {
+        return Jurusan::with(['kelas.siswa', 'kelas.waliKelas'])->find($id);
+    }
+
+    /**
+     * Get jurusan with kaprodi relation.
+     */
+    public function getWithKaprodi(int $id): ?Jurusan
+    {
+        return Jurusan::with('kaprodi')->find($id);
+    }
+
+    /**
+     * Get all jurusan for dropdown filter.
+     */
+    public function getForFilter(): Collection
+    {
+        return Jurusan::select('id', 'nama_jurusan', 'kode_jurusan')
+            ->orderBy('nama_jurusan')
+            ->get();
+    }
+
+    /**
+     * Find jurusan by kode.
+     */
+    public function findByKode(string $kode): ?Jurusan
+    {
+        return Jurusan::where('kode_jurusan', $kode)->first();
+    }
+
+    /**
+     * Assign kaprodi to jurusan.
+     */
+    public function assignKaprodi(int $jurusanId, ?int $userId): bool
+    {
+        return Jurusan::where('id', $jurusanId)->update(['kaprodi_user_id' => $userId]);
+    }
+
+    // ===================================================================
+    // LEGACY METHODS (Keep for backward compatibility)
+    // ===================================================================
+
+    /**
+     * Get all jurusan with counts (for index) - LEGACY ALIAS
+     */
+    public function getAllWithCounts(): Collection
+    {
+        return $this->getAllWithStats();
+    }
+    
     
     /**
      * Get jurusan with relationships (for show)
@@ -49,17 +115,17 @@ class JurusanRepository
     }
     
     /**
-     * Update existing jurusan
+     * Update existing jurusan (legacy method - use parent::update instead)
      */
-    public function update(Jurusan $jurusan, array $data): bool
+    public function updateJurusan(Jurusan $jurusan, array $data): bool
     {
         return $jurusan->update($data);
     }
     
     /**
-     * Delete jurusan
+     * Delete jurusan (legacy method - use parent::delete instead)
      */
-    public function delete(Jurusan $jurusan): bool
+    public function deleteJurusan(Jurusan $jurusan): bool
     {
         return $jurusan->delete();
     }

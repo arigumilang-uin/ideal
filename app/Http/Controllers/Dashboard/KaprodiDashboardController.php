@@ -3,16 +3,35 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
+use App\Services\Dashboard\DashboardService;
+use App\Models\TindakLanjut;
+use App\Models\Siswa;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use App\Models\RiwayatPelanggaran;
-use App\Models\TindakLanjut;
-use App\Models\Kelas;
 
+/**
+ * Kaprodi Dashboard Controller
+ * 
+ * PERAN: Kurir (Courier)
+ * - Menerima HTTP Request
+ * - Panggil DashboardService untuk data
+ * - Return View
+ * 
+ * @package App\Http\Controllers\Dashboard
+ */
 class KaprodiDashboardController extends Controller
 {
-    public function index(Request $request)
+    public function __construct(
+        private DashboardService $dashboardService
+    ) {}
+
+    /**
+     * Display Kaprodi dashboard.
+     */
+    public function index(Request $request): View|JsonResponse
     {
         $user = Auth::user();
         $jurusan = $user->jurusanDiampu;
@@ -21,87 +40,59 @@ class KaprodiDashboardController extends Controller
             return view('dashboards.kaprodi_no_data');
         }
 
-        // FILTER (Default: Bulan Ini)
-        $startDate = $request->input('start_date', date('Y-m-01'));
-        $endDate = $request->input('end_date', date('Y-m-d'));
-        $kelasId = $request->input('kelas_id'); // Filter per kelas (optional)
+        // Build filters
+        $filters = [
+            'start_date' => $request->input('start_date', date('Y-m-01')),
+            'end_date' => $request->input('end_date', date('Y-m-d')),
+            'jurusan_id' => $jurusan->id,
+            'kelas_id' => $request->input('kelas_id'),
+        ];
 
-        // DATA KELAS UNTUK DROPDOWN
-        $kelasJurusan = Kelas::where('jurusan_id', $jurusan->id)->get();
+        // Get data from service
+        $stats = $this->dashboardService->getKaprodiStats($jurusan->id, $filters);
+        $chartData = $this->dashboardService->getChartPelanggaranByJenis($filters);
+        $kelasJurusan = $this->dashboardService->getKelasByJurusan($jurusan->id);
 
-        // SISWA IDS (untuk scope filtering)
-        $siswaIds = DB::table('siswa')
-            ->join('kelas', 'siswa.kelas_id', '=', 'kelas.id')
-            ->where('kelas.jurusan_id', $jurusan->id)
-            ->when($kelasId, function($q) use ($kelasId) {
-                return $q->where('kelas.id', $kelasId);
-            })
-            ->pluck('siswa.id');
+        // Get siswa IDs for this jurusan (needed for kasus query)
+        $siswaIds = Siswa::whereHas('kelas', fn($q) => $q->where('jurusan_id', $jurusan->id))
+            ->when($filters['kelas_id'], fn($q) => $q->where('kelas_id', $filters['kelas_id']))
+            ->pluck('id');
 
-        // KASUS SURAT (Clean & Informatif)
-        // Hanya tampilkan kasus yang:
-        // 1. Siswa di jurusan ini
-        // 2. Melibatkan Kaprodi
-        // 3. Punya surat panggilan
+        // Get kasus for Kaprodi
         $kasusBaru = TindakLanjut::with(['siswa.kelas', 'suratPanggilan'])
             ->whereIn('siswa_id', $siswaIds)
-            ->forPembina('Kaprodi')  // Filter: Hanya yang melibatkan Kaprodi
-            ->whereHas('suratPanggilan')  // Filter: Harus punya surat
+            ->forPembina('Kaprodi')
+            ->whereHas('suratPanggilan')
             ->whereIn('status', ['Baru', 'Menunggu Persetujuan', 'Disetujui', 'Ditangani'])
             ->latest()
             ->get();
 
-        // DIAGRAM: Pelanggaran Populer di Jurusan (Filter Waktu & Kelas)
-        $chartPelanggaran = DB::table('riwayat_pelanggaran')
-            ->join('siswa', 'riwayat_pelanggaran.siswa_id', '=', 'siswa.id')
-            ->join('kelas', 'siswa.kelas_id', '=', 'kelas.id')
-            ->join('jenis_pelanggaran', 'riwayat_pelanggaran.jenis_pelanggaran_id', '=', 'jenis_pelanggaran.id')
-            ->where('kelas.jurusan_id', $jurusan->id)
-            ->when($kelasId, function($q) use ($kelasId) {
-                return $q->where('kelas.id', $kelasId);
-            })
-            ->whereDate('riwayat_pelanggaran.tanggal_kejadian', '>=', $startDate)
-            ->whereDate('riwayat_pelanggaran.tanggal_kejadian', '<=', $endDate)
-            ->select('jenis_pelanggaran.nama_pelanggaran', DB::raw('count(*) as total'))
-            ->groupBy('jenis_pelanggaran.nama_pelanggaran')
-            ->orderByDesc('total')
-            ->limit(10)
-            ->get();
-
-        $chartLabels = $chartPelanggaran->pluck('nama_pelanggaran');
-        $chartData = $chartPelanggaran->pluck('total');
-
-        // STATISTIK
-        $totalSiswa = $siswaIds->count();
-        $totalKasus = $kasusBaru->count();
-        $totalPelanggaran = RiwayatPelanggaran::whereIn('siswa_id', $siswaIds)
-            ->whereDate('tanggal_kejadian', '>=', $startDate)
-            ->whereDate('tanggal_kejadian', '<=', $endDate)
-            ->count();
+        // AJAX Response
         if ($request->ajax()) {
             return response()->json([
-                'stats' => view('dashboards._kaprodi_stats', compact('totalSiswa', 'totalPelanggaran', 'totalKasus'))->render(),
+                'stats' => view('dashboards._kaprodi_stats', [
+                    'totalSiswa' => $stats['totalSiswa'],
+                    'totalPelanggaran' => $stats['pelanggaranBulanIni'],
+                    'totalKasus' => $stats['kasusAktif'],
+                ])->render(),
                 'table' => view('dashboards._kaprodi_table', compact('kasusBaru'))->render(),
                 'charts' => [
-                    'pelanggaran' => [
-                        'labels' => $chartLabels,
-                        'data' => $chartData
-                    ]
+                    'pelanggaran' => $chartData,
                 ]
             ]);
         }
 
-        return view('dashboards.kaprodi', compact(
-            'jurusan', 
-            'kasusBaru',
-            'chartLabels', 
-            'chartData',
-            'totalSiswa',
-            'totalKasus',
-            'totalPelanggaran',
-            'kelasJurusan', 
-            'startDate', 
-            'endDate'
-        ));
+        return view('dashboards.kaprodi', [
+            'jurusan' => $jurusan,
+            'kasusBaru' => $kasusBaru,
+            'chartLabels' => $chartData['labels'],
+            'chartData' => $chartData['data'],
+            'totalSiswa' => $stats['totalSiswa'],
+            'totalKasus' => $stats['kasusAktif'],
+            'totalPelanggaran' => $stats['pelanggaranBulanIni'],
+            'kelasJurusan' => $kelasJurusan,
+            'startDate' => $filters['start_date'],
+            'endDate' => $filters['end_date'],
+        ]);
     }
 }

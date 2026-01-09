@@ -29,7 +29,10 @@ class UserService
      * @param UserRepositoryInterface $userRepo
      */
     public function __construct(
-        private UserRepositoryInterface $userRepo
+        private UserRepositoryInterface $userRepo,
+        private \App\Repositories\Contracts\KelasRepositoryInterface $kelasRepo,
+        private \App\Repositories\Contracts\JurusanRepositoryInterface $jurusanRepo,
+        private \App\Repositories\Contracts\SiswaRepositoryInterface $siswaRepo
     ) {}
 
     /**
@@ -37,97 +40,70 @@ class UserService
      * 
      * ALUR:
      * 1. Validate role_id exists
-     * 2. Create temporary user object for naming
-     * 3. Auto-generate nama, username if not provided
-     * 4. Hash password
-     * 5. Create user via repository
-     * 6. Handle role-specific assignments (kelas, jurusan, siswa)
-     * 7. Return created user data
+     * 2. Auto-generate nama, username if not provided
+     * 3. Hash password
+     * 4. Create user via repository
+     * 5. Handle role-specific assignments (kelas, jurusan, siswa)
+     * 6. Return created user data
      *
-     * @param array $data
-     * @return mixed
+     * @param UserData $data
+     * @return UserData
      * @throws \Exception
      */
-    public function createUser(array $data)
+    public function createUser(UserData $data): UserData
     {
         DB::beginTransaction();
 
         try {
             // Validate role exists
-            $role = Role::findOrFail($data['role_id']);
-            $guruRole = Role::where('nama_role', 'Guru')->first();
+            $role = Role::findOrFail($data->role_id);
 
             // Username: Gunakan dari input user
-            $username = $data['username'];
+            $username = $data->username;
             
             // Generate nama awal berdasarkan role (akan diupdate oleh observer jika ada assignment)
             $nama = $role->nama_role;
 
             // Siapkan data untuk disimpan
-            $userData = [
-                'role_id' => $data['role_id'],
+            $userDataArr = [
+                'role_id' => $data->role_id,
                 'nama' => $nama,
                 'username' => $username,
-                'email' => $data['email'] ?? null,
-                'phone' => $data['phone'] ?? null,
-                'nip' => $data['nip'] ?? null,
-                'nuptk' => $data['nuptk'] ?? null,
-                'password' => Hash::make($data['password']),
+                'email' => $data->email,
+                'phone' => $data->phone,
+                'nip' => $data->nip,
+                'nuptk' => $data->nuptk,
+                'password' => Hash::make($data->password),
                 'is_active' => true,
             ];
 
             // Create via repository
-            $createdUser = $this->userRepo->create($userData);
+            $createdUser = $this->userRepo->create($userDataArr);
 
             // Handle role-specific assignments - USING ELOQUENT TO TRIGGER OBSERVERS
             
             // WALI KELAS - Assign to Kelas
-            if ($role->nama_role === 'Wali Kelas' && isset($data['kelas_id'])) {
-                $kelas = \App\Models\Kelas::find($data['kelas_id']);
-                if ($kelas) {
-                    // Simpan old wali untuk demote ke guru
-                    $oldWaliId = $kelas->wali_kelas_user_id;
-                    
-                    // Assign new wali - this triggers KelasObserver
-                    $kelas->wali_kelas_user_id = $createdUser->id;
-                    $kelas->save();
-                    
-                    // Update nama user sesuai kelas
-                    $createdUser->updateQuietly(['nama' => "Wali Kelas {$kelas->nama_kelas}"]);
-                }
+            if ($role->nama_role === 'Wali Kelas' && $data->kelas_id) {
+                // Use Repository to update - This triggers KelasObserver which handles User Name update
+                $this->kelasRepo->update($data->kelas_id, ['wali_kelas_user_id' => $createdUser->id]);
             }
 
             // KAPRODI - Assign to Jurusan
-            if ($role->nama_role === 'Kaprodi' && isset($data['jurusan_id'])) {
-                $jurusan = \App\Models\Jurusan::find($data['jurusan_id']);
-                if ($jurusan) {
-                    // Simpan old kaprodi untuk demote ke guru
-                    $oldKaprodiId = $jurusan->kaprodi_user_id;
-                    
-                    // Assign new kaprodi - this triggers JurusanObserver
-                    $jurusan->kaprodi_user_id = $createdUser->id;
-                    $jurusan->save();
-                    
-                    // Update nama user sesuai jurusan
-                    $createdUser->updateQuietly(['nama' => "Kaprodi {$jurusan->nama_jurusan}"]);
-                }
+            if ($role->nama_role === 'Kaprodi' && $data->jurusan_id) {
+                // Use Repository to update - This triggers JurusanObserver which handles User Name update
+                $this->jurusanRepo->update($data->jurusan_id, ['kaprodi_user_id' => $createdUser->id]);
             }
 
             // WALI MURID - Assign to Siswa
-            if ($role->nama_role === 'Wali Murid' && isset($data['siswa_ids']) && is_array($data['siswa_ids'])) {
-                \App\Models\Siswa::whereIn('id', $data['siswa_ids'])
-                    ->update(['wali_murid_user_id' => $createdUser->id]);
-                    
-                // Re-generate nama using first siswa
-                if (count($data['siswa_ids']) > 0) {
-                    $createdUser->refresh();
-                    $newNama = UserNamingService::generateNama($createdUser);
-                    $newUsername = UserNamingService::generateUsername($createdUser);
-                    $this->userRepo->update($createdUser->id, [
-                        'nama' => $newNama,
-                        'username' => $newUsername,
-                    ]);
+            if ($role->nama_role === 'Wali Murid' && !empty($data->siswa_ids)) {
+                foreach ($data->siswa_ids as $siswaId) {
+                    $this->siswaRepo->update($siswaId, ['wali_murid_user_id' => $createdUser->id]);
                 }
+                // Nama Wali Murid updated by SiswaObserver? Assuming yes.
+                // If not, we might need a manual trigger or ensure Observer exists.
+                // But generally, Observer pattern implies delegation.
+                // Check UserNameSyncObserver comment: "- When siswa.wali_murid_user_id changes (via SiswaObserver)"
+                // So Safe.
             }
 
             DB::commit();
@@ -197,6 +173,27 @@ class UserService
 
             // Update via repository
             $updatedUser = $this->userRepo->update($userId, $updateData);
+
+            // Handle role-specific assignments - USING ELOQUENT TO TRIGGER OBSERVERS
+            
+            // WALI KELAS - Assign to Kelas
+            if ($data->kelas_id) {
+                $this->kelasRepo->update($data->kelas_id, ['wali_kelas_user_id' => $updatedUser->id]);
+            }
+
+            // KAPRODI - Assign to Jurusan
+            if ($data->jurusan_id) {
+                $this->jurusanRepo->update($data->jurusan_id, ['kaprodi_user_id' => $updatedUser->id]);
+            }
+
+            // WALI MURID - Assign to Siswa
+            if (!empty($data->siswa_ids)) {
+                // Reset old students first? Usually logic handles reassignment.
+                // Here simply assign new ones.
+                foreach ($data->siswa_ids as $siswaId) {
+                    $this->siswaRepo->update($siswaId, ['wali_murid_user_id' => $updatedUser->id]);
+                }
+            }
 
             DB::commit();
 

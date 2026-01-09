@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Pelanggaran;
+namespace App\Services\TindakLanjut;
 
 use App\Models\Siswa;
 use App\Models\User;

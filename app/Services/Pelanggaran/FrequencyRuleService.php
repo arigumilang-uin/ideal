@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Rules;
+namespace App\Services\Pelanggaran;
 
 use App\Models\PelanggaranFrequencyRule;
 use App\Repositories\FrequencyRuleRepository;

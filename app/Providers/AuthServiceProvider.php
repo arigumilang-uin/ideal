@@ -4,9 +4,15 @@ namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use App\Models\Siswa;
+use App\Models\User;
+use App\Models\Jurusan;
+use App\Models\Kelas;
 use App\Models\RiwayatPelanggaran;
 use App\Models\TindakLanjut;
 use App\Policies\SiswaPolicy;
+use App\Policies\UserPolicy;
+use App\Policies\JurusanPolicy;
+use App\Policies\KelasPolicy;
 use App\Policies\RiwayatPelanggaranPolicy;
 use App\Policies\TindakLanjutPolicy;
 
@@ -24,7 +30,15 @@ class AuthServiceProvider extends ServiceProvider
      * @var array<class-string, class-string>
      */
     protected $policies = [
+        // Core domain policies
         Siswa::class => SiswaPolicy::class,
+        User::class => UserPolicy::class,
+        
+        // Master data policies
+        Jurusan::class => JurusanPolicy::class,
+        Kelas::class => KelasPolicy::class,
+        
+        // Transaction policies
         RiwayatPelanggaran::class => RiwayatPelanggaranPolicy::class,
         TindakLanjut::class => TindakLanjutPolicy::class,
     ];

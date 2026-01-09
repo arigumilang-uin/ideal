@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Rules;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Rules\CreateFrequencyRuleRequest;
 use App\Http\Requests\Rules\UpdateFrequencyRuleRequest;
-use App\Services\Rules\FrequencyRuleService;
+use App\Services\Pelanggaran\FrequencyRuleService;
 use App\Repositories\JenisPelanggaranRepository;
 use Illuminate\Http\Request;
 
