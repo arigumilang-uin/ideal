@@ -105,33 +105,35 @@ class PelanggaranFrequencyRule extends Model
             return null;
         }
 
-        $pembinaCount = count($this->pembina_roles);
+        $pembinaRoles = $this->pembina_roles ?? [];
+        
+        if (empty($pembinaRoles)) {
+            return null;
+        }
 
-        // Surat 1: Wali Kelas (1 pembina)
-        if ($pembinaCount === 1 && in_array('Wali Kelas', $this->pembina_roles)) {
+        // FLEXIBLE LOGIC: Tentukan tipe surat berdasarkan LEVEL TERTINGGI pembina
+        // Surat 4: Ada Kepala Sekolah
+        // Surat 3: Ada Waka Kesiswaan (tanpa Kepsek)
+        // Surat 2: Ada Kaprodi (tanpa Waka/Kepsek)
+        // Surat 1: Hanya Wali Kelas
+        
+        if (in_array('Kepala Sekolah', $pembinaRoles)) {
+            return 'Surat 4';
+        }
+        
+        if (in_array('Waka Kesiswaan', $pembinaRoles) || in_array('Waka Sarana', $pembinaRoles)) {
+            return 'Surat 3';
+        }
+        
+        if (in_array('Kaprodi', $pembinaRoles)) {
+            return 'Surat 2';
+        }
+        
+        if (in_array('Wali Kelas', $pembinaRoles)) {
             return 'Surat 1';
         }
 
-        // Surat 2: Wali Kelas + Kaprodi (2 pembina)
-        if ($pembinaCount === 2 &&
-            in_array('Wali Kelas', $this->pembina_roles) &&
-            in_array('Kaprodi', $this->pembina_roles)) {
-            return 'Surat 2';
-        }
-
-        // Surat 3: Wali Kelas + Kaprodi + Waka (3 pembina)
-        if ($pembinaCount === 3 &&
-            in_array('Wali Kelas', $this->pembina_roles) &&
-            in_array('Kaprodi', $this->pembina_roles) &&
-            in_array('Waka Kesiswaan', $this->pembina_roles)) {
-            return 'Surat 3';
-        }
-
-        // Surat 4: Semua pembina (4 pembina atau lebih)
-        if ($pembinaCount >= 4) {
-            return 'Surat 4';
-        }
-
-        return null;
+        // Fallback: jika ada pembina lain yang tidak dikenali, return Surat 1
+        return 'Surat 1';
     }
 }

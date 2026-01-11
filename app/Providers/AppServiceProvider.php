@@ -14,6 +14,7 @@ use App\Observers\SiswaObserver;
 use App\Observers\UserNameSyncObserver;
 use App\Observers\JurusanObserver;
 use App\Observers\KelasObserver;
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -30,16 +31,23 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Register model observers
-        Siswa::observe(SiswaObserver::class);
-        
-        // Auto-sync user names based on role and assignments
-        User::observe(UserNameSyncObserver::class);
-        Jurusan::observe(JurusanObserver::class);
-        Kelas::observe(KelasObserver::class);
-        
-        // Configure Rate Limiting
-        $this->configureRateLimiting();
+    // Cek langsung hostname yang sedang diakses di browser
+    $host = request()->getHost();
+
+    // HANYA paksa HTTPS jika:
+    // 1. Host mengandung 'trycloudflare.com' 
+    // 2. ATAU diakses lewat proxy HTTPS (header dari Cloudflare)
+    if (str_contains($host, 'trycloudflare.com') || request()->header('X-Forwarded-Proto') === 'https') {
+        URL::forceScheme('https');
+    }
+
+    // Sisanya tetap...
+    Siswa::observe(SiswaObserver::class);
+    User::observe(UserNameSyncObserver::class);
+    Jurusan::observe(JurusanObserver::class);
+    Kelas::observe(KelasObserver::class);
+    
+    $this->configureRateLimiting();
     }
     
     /**

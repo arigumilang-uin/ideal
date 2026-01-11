@@ -43,21 +43,12 @@ class SuratPrintingService
         // Convert logo to Base64
         $logoBase64 = $this->getLogoBase64();
 
-        // Convert pembina roles
-        $pembinaRoles = $surat->pembina_roles ?? ['Wali Kelas', 'Waka Kesiswaan', 'Kepala Sekolah'];
-        $pihakTerlibat = [
-            'wali_kelas' => in_array('Wali Kelas', $pembinaRoles),
-            'kaprodi' => in_array('Kaprodi', $pembinaRoles),
-            'waka_kesiswaan' => in_array('Waka Kesiswaan', $pembinaRoles) || in_array('Waka Sarana', $pembinaRoles),
-            'kepala_sekolah' => in_array('Kepala Sekolah', $pembinaRoles),
-        ];
-
         // Generate PDF
+        // Note: Template now reads pembina_roles directly from $surat->pembina_roles
         $pdf = Pdf::loadView('pdf.surat-panggilan', [
             'siswa' => $kasus->siswa,
             'surat' => $surat,
             'logoBase64' => $logoBase64,
-            'pihakTerlibat' => $pihakTerlibat,
         ]);
 
         // Set paper size (Custom Legal/F4 size mostly used in schools)

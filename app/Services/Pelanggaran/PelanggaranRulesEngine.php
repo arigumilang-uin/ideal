@@ -7,6 +7,7 @@ use App\Models\RiwayatPelanggaran;
 use App\Models\Siswa;
 use App\Models\TindakLanjut;
 use App\Services\TindakLanjut\TindakLanjutNotificationService;
+use App\Services\TindakLanjut\SuratPanggilanService;
 
 /**
  * Service untuk Rules Engine Pelanggaran (v2.0 - Frequency-Based)
@@ -672,17 +673,25 @@ class PelanggaranRulesEngine
      */
     private function tentukanTipeSuratDariPembina(array $pembinaRoles): string
     {
-        // Hitung pembina yang dihitung (exclude "Semua Guru & Staff")
-        $pembinaCount = count(array_filter($pembinaRoles, function($role) {
+        // Exclude "Semua Guru & Staff" dari perhitungan
+        $filteredRoles = array_filter($pembinaRoles, function($role) {
             return $role !== 'Semua Guru & Staff';
-        }));
+        });
 
-        return match(true) {
-            $pembinaCount >= 4 => 'Surat 4',
-            $pembinaCount === 3 => 'Surat 3',
-            $pembinaCount === 2 => 'Surat 2',
-            default => 'Surat 1',
-        };
+        // FLEXIBLE LOGIC: Tentukan tipe surat berdasarkan LEVEL TERTINGGI pembina
+        if (in_array('Kepala Sekolah', $filteredRoles)) {
+            return 'Surat 4';
+        }
+        
+        if (in_array('Waka Kesiswaan', $filteredRoles) || in_array('Waka Sarana', $filteredRoles)) {
+            return 'Surat 3';
+        }
+        
+        if (in_array('Kaprodi', $filteredRoles)) {
+            return 'Surat 2';
+        }
+        
+        return 'Surat 1';
     }
 }
 

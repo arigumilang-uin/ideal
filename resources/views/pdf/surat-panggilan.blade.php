@@ -240,29 +240,30 @@
         </p>
     </div>
 
-    {{-- TANDA TANGAN DINAMIS BERDASARKAN PIHAK YANG TERLIBAT --}}
+    {{-- TANDA TANGAN DINAMIS BERDASARKAN PEMBINA YANG TERLIBAT --}}
     
     @php
-        // Hitung jumlah pihak yang terlibat
-        $jumlahPihak = collect($pihakTerlibat)->filter()->count();
+        // Ambil pembina_roles dari surat (array of role names)
+        $pembinaRoles = $surat->pembina_roles ?? [];
         
-        // Tentukan template yang digunakan
-        $templateType = '';
-        if ($pihakTerlibat['wali_kelas'] && !$pihakTerlibat['kaprodi'] && !$pihakTerlibat['waka_kesiswaan'] && !$pihakTerlibat['kepala_sekolah']) {
-            $templateType = 'wali_only';
-        } elseif ($pihakTerlibat['wali_kelas'] && $pihakTerlibat['kaprodi'] && !$pihakTerlibat['waka_kesiswaan'] && !$pihakTerlibat['kepala_sekolah']) {
-            $templateType = 'wali_kaprodi';
-        } elseif ($pihakTerlibat['wali_kelas'] && $pihakTerlibat['waka_kesiswaan'] && !$pihakTerlibat['kaprodi'] && !$pihakTerlibat['kepala_sekolah']) {
-            $templateType = 'wali_waka';
-        } elseif ($pihakTerlibat['wali_kelas'] && $pihakTerlibat['kaprodi'] && $pihakTerlibat['waka_kesiswaan'] && !$pihakTerlibat['kepala_sekolah']) {
-            $templateType = 'wali_kaprodi_waka';
-        } else {
-            $templateType = 'full'; // Template penuh (tanpa Kaprodi, hanya Wali+Waka+Kepsek)
+        // Urutan hierarki dari TERTINGGI ke TERENDAH
+        $hierarki = ['Kepala Sekolah', 'Waka Kesiswaan', 'Waka Sarana', 'Kaprodi', 'Wali Kelas'];
+        
+        // Filter hanya pembina yang terlibat dan urutkan berdasarkan hierarki
+        $activePembina = [];
+        foreach ($hierarki as $role) {
+            if (in_array($role, $pembinaRoles)) {
+                $activePembina[] = $role;
+            }
         }
         
-        // Helper function untuk mendapatkan data pembina dari pembina_data
+        // Balik urutan: TERENDAH ke TERTINGGI (untuk layout: terendah di kanan)
+        $activePembina = array_reverse($activePembina);
+        $jumlahPembina = count($activePembina);
+        
+        // Helper function untuk mendapatkan data pembina
         $getPembinaData = function($jabatan) use ($surat, $siswa) {
-            // Cari di pembina_data
+            // Cari di pembina_data yang sudah disimpan di surat
             if (isset($surat->pembina_data) && is_array($surat->pembina_data)) {
                 foreach ($surat->pembina_data as $pembina) {
                     if (($pembina['jabatan'] ?? '') === $jabatan) {
@@ -281,6 +282,9 @@
                     break;
                 case 'Waka Kesiswaan':
                     $user = \App\Models\User::whereHas('role', fn($q) => $q->where('nama_role', 'Waka Kesiswaan'))->first();
+                    break;
+                case 'Waka Sarana':
+                    $user = \App\Models\User::whereHas('role', fn($q) => $q->where('nama_role', 'Waka Sarana'))->first();
                     break;
                 case 'Kepala Sekolah':
                     $user = \App\Models\User::whereHas('role', fn($q) => $q->where('nama_role', 'Kepala Sekolah'))->first();
@@ -302,111 +306,135 @@
             return null;
         };
         
-        // Get pembina data
-        $waliKelas = $getPembinaData('Wali Kelas');
-        $kaprodi = $getPembinaData('Kaprodi');
-        $wakaKesiswaan = $getPembinaData('Waka Kesiswaan');
-        $kepalaSekolah = $getPembinaData('Kepala Sekolah');
+        // Helper untuk menampilkan label jabatan yang proper
+        $getJabatanLabel = function($role) {
+            return match($role) {
+                'Kepala Sekolah' => 'Kepala Sekolah',
+                'Waka Kesiswaan' => 'Waka. Kesiswaan',
+                'Waka Sarana' => 'Waka. Sarana',
+                'Kaprodi' => 'Ketua Program Keahlian',
+                'Wali Kelas' => 'Wali Kelas',
+                default => $role,
+            };
+        };
     @endphp
     
     <table width="100%" border="0" style="margin-top: 40px;">
         
-        @if($templateType === 'wali_only')
-            {{-- Template 1: Hanya Wali Kelas (KANAN) --}}
+        @if($jumlahPembina === 1)
+            {{-- 1 Pembina: Di KANAN --}}
+            @php $p1 = $getPembinaData($activePembina[0]); @endphp
             <tr>
+                <td width="50%" align="center">&nbsp;</td>
                 <td width="50%" align="center">
-                    &nbsp;
-                </td>
-                <td width="50%" align="center">
-                    Wali Kelas
+                    {{ $getJabatanLabel($activePembina[0]) }}
                     <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $waliKelas['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $waliKelas['nip_label'] ?? 'NIP.' }} {{ $waliKelas['nip'] ?? '' }}
+                    <strong style="text-decoration: underline;">{{ $p1['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $p1['nip_label'] ?? 'NIP.' }} {{ $p1['nip'] ?? '' }}
                 </td>
             </tr>
             
-        @elseif($templateType === 'wali_kaprodi')
-            {{-- Template 2: Kaprodi (KIRI) + Wali Kelas (KANAN) --}}
+        @elseif($jumlahPembina === 2)
+            {{-- 2 Pembina: Lebih tinggi di KIRI, lebih rendah di KANAN --}}
+            {{-- activePembina[0] = terendah (kanan), activePembina[1] = tertinggi (kiri) --}}
+            @php 
+                $pRight = $getPembinaData($activePembina[0]); // Terendah
+                $pLeft = $getPembinaData($activePembina[1]);  // Tertinggi
+            @endphp
             <tr>
                 <td width="50%" align="center">
-                    Ketua Program Keahlian
+                    {{ $getJabatanLabel($activePembina[1]) }}
                     <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $kaprodi['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $kaprodi['nip_label'] ?? 'NIP.' }} {{ $kaprodi['nip'] ?? '' }}
+                    <strong style="text-decoration: underline;">{{ $pLeft['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $pLeft['nip_label'] ?? 'NIP.' }} {{ $pLeft['nip'] ?? '' }}
                 </td>
                 <td width="50%" align="center">
-                    Wali Kelas
+                    {{ $getJabatanLabel($activePembina[0]) }}
                     <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $waliKelas['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $waliKelas['nip_label'] ?? 'NIP.' }} {{ $waliKelas['nip'] ?? '' }}
+                    <strong style="text-decoration: underline;">{{ $pRight['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $pRight['nip_label'] ?? 'NIP.' }} {{ $pRight['nip'] ?? '' }}
                 </td>
             </tr>
             
-        @elseif($templateType === 'wali_waka')
-            {{-- Template 3: Wali Kelas + Waka Kesiswaan --}}
+        @elseif($jumlahPembina === 3)
+            {{-- 3 Pembina: Terendah KANAN, menengah KIRI, Tertinggi BAWAH TENGAH --}}
+            {{-- activePembina: [0]=terendah, [1]=menengah, [2]=tertinggi --}}
+            @php 
+                $pRight = $getPembinaData($activePembina[0]);  // Terendah
+                $pLeft = $getPembinaData($activePembina[1]);   // Menengah
+                $pBottom = $getPembinaData($activePembina[2]); // Tertinggi
+            @endphp
             <tr>
                 <td width="50%" align="center">
-                    Wali Kelas
+                    {{ $getJabatanLabel($activePembina[1]) }}
                     <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $waliKelas['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $waliKelas['nip_label'] ?? 'NIP.' }} {{ $waliKelas['nip'] ?? '' }}
+                    <strong style="text-decoration: underline;">{{ $pLeft['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $pLeft['nip_label'] ?? 'NIP.' }} {{ $pLeft['nip'] ?? '' }}
                 </td>
                 <td width="50%" align="center">
-                    Waka. Kesiswaan
+                    {{ $getJabatanLabel($activePembina[0]) }}
                     <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $wakaKesiswaan['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $wakaKesiswaan['nip_label'] ?? 'NIP.' }} {{ $wakaKesiswaan['nip'] ?? '' }}
-                </td>
-            </tr>
-            
-        @elseif($templateType === 'wali_kaprodi_waka')
-            {{-- Template 4: Kaprodi (KIRI) + Wali (KANAN), Waka (BAWAH CENTERED) --}}
-            <tr>
-                <td width="50%" align="center">
-                    Ketua Program Keahlian
-                    <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $kaprodi['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $kaprodi['nip_label'] ?? 'NIP.' }} {{ $kaprodi['nip'] ?? '' }}
-                </td>
-                <td width="50%" align="center">
-                    Wali Kelas
-                    <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $waliKelas['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $waliKelas['nip_label'] ?? 'NIP.' }} {{ $waliKelas['nip'] ?? '' }}
-                </td>
-            </tr>
-            <tr>
-                <td colspan="2" align="center" style="padding-top: 40px;">
-                    Waka. Kesiswaan
-                    <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $wakaKesiswaan['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $wakaKesiswaan['nip_label'] ?? 'NIP.' }} {{ $wakaKesiswaan['nip'] ?? '' }}
-                </td>
-            </tr>
-            
-        @else
-            {{-- Template 5: FULL (Waka KIRI + Wali KANAN, Kepsek BAWAH) --}}
-            <tr>
-                <td width="50%" align="center">
-                    Waka. Kesiswaan
-                    <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $wakaKesiswaan['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $wakaKesiswaan['nip_label'] ?? 'NIP.' }} {{ $wakaKesiswaan['nip'] ?? '' }}
-                </td>
-                <td width="50%" align="center">
-                    Wali Kelas
-                    <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $waliKelas['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $waliKelas['nip_label'] ?? 'NIP.' }} {{ $waliKelas['nip'] ?? '' }}
+                    <strong style="text-decoration: underline;">{{ $pRight['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $pRight['nip_label'] ?? 'NIP.' }} {{ $pRight['nip'] ?? '' }}
                 </td>
             </tr>
             <tr>
                 <td colspan="2" align="center" style="padding-top: 40px;">
                     Mengetahui<br>
-                    Kepala Sekolah
+                    {{ $getJabatanLabel($activePembina[2]) }}
                     <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $kepalaSekolah['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $kepalaSekolah['nip_label'] ?? 'NIP.' }} {{ $kepalaSekolah['nip'] ?? '' }}
+                    <strong style="text-decoration: underline;">{{ $pBottom['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $pBottom['nip_label'] ?? 'NIP.' }} {{ $pBottom['nip'] ?? '' }}
+                </td>
+            </tr>
+            
+        @elseif($jumlahPembina >= 4)
+            {{-- 4+ Pembina: Dua baris --}}
+            {{-- Baris 1: Kaprodi (kiri), Wali Kelas (kanan) --}}
+            {{-- Baris 2: Waka (kiri), Kepala Sekolah (kanan) dengan "Mengetahui" --}}
+            {{-- activePembina: [0]=Wali Kelas, [1]=Kaprodi, [2]=Waka, [3]=Kepala Sekolah --}}
+            @php 
+                $p0 = $getPembinaData($activePembina[0] ?? null); // Wali Kelas
+                $p1 = $getPembinaData($activePembina[1] ?? null); // Kaprodi
+                $p2 = $getPembinaData($activePembina[2] ?? null); // Waka
+                $p3 = $getPembinaData($activePembina[3] ?? null); // Kepala Sekolah
+            @endphp
+            {{-- Baris 1: Kaprodi (kiri) + Wali Kelas (kanan) --}}
+            <tr>
+                <td width="50%" align="center">
+                    {{ $getJabatanLabel($activePembina[1]) }}
+                    <div style="height: 70px;"></div>
+                    <strong style="text-decoration: underline;">{{ $p1['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $p1['nip_label'] ?? 'NIP.' }} {{ $p1['nip'] ?? '' }}
+                </td>
+                <td width="50%" align="center">
+                    {{ $getJabatanLabel($activePembina[0]) }}
+                    <div style="height: 70px;"></div>
+                    <strong style="text-decoration: underline;">{{ $p0['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $p0['nip_label'] ?? 'NIP.' }} {{ $p0['nip'] ?? '' }}
+                </td>
+            </tr>
+            {{-- Baris 2: Waka (kiri) + Kepala Sekolah (kanan dengan Mengetahui) --}}
+            <tr>
+                <td width="50%" align="center" style="padding-top: 40px;">
+                    {{ $getJabatanLabel($activePembina[2]) }}
+                    <div style="height: 70px;"></div>
+                    <strong style="text-decoration: underline;">{{ $p2['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $p2['nip_label'] ?? 'NIP.' }} {{ $p2['nip'] ?? '' }}
+                </td>
+                <td width="50%" align="center" style="padding-top: 40px;">
+                    Mengetahui<br>
+                    {{ $getJabatanLabel($activePembina[3]) }}
+                    <div style="height: 70px;"></div>
+                    <strong style="text-decoration: underline;">{{ $p3['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $p3['nip_label'] ?? 'NIP.' }} {{ $p3['nip'] ?? '' }}
+                </td>
+            </tr>
+        @else
+            {{-- Fallback: Tidak ada pembina (seharusnya tidak terjadi) --}}
+            <tr>
+                <td colspan="2" align="center">
+                    <em>Data pembina tidak tersedia</em>
                 </td>
             </tr>
         @endif
