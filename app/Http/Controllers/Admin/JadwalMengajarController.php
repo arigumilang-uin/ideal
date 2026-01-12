@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
 
+use App\Services\Absensi\PertemuanService;
+
 /**
  * Jadwal Mengajar Controller (Admin)
  * 
@@ -19,7 +21,8 @@ use Illuminate\Http\RedirectResponse;
 class JadwalMengajarController extends Controller
 {
     public function __construct(
-        private JadwalService $jadwalService
+        private JadwalService $jadwalService,
+        private PertemuanService $pertemuanService
     ) {}
 
     /**
@@ -90,9 +93,10 @@ class JadwalMengajarController extends Controller
             'tahun_ajaran' => 'required|string|max:10',
         ]);
 
-        // Check for conflict
-        $hasConflict = $this->jadwalService->hasConflict(
+        // Check for conflict (kelas + guru)
+        $conflicts = $this->jadwalService->checkConflicts(
             kelasId: $validated['kelas_id'],
+            userId: $validated['user_id'],
             hari: Hari::from($validated['hari']),
             jamMulai: $validated['jam_mulai'],
             jamSelesai: $validated['jam_selesai'],
@@ -100,17 +104,24 @@ class JadwalMengajarController extends Controller
             tahunAjaran: $validated['tahun_ajaran']
         );
 
-        if ($hasConflict) {
+        if (!empty($conflicts)) {
             return back()
                 ->withInput()
-                ->with('error', 'Jadwal bentrok dengan jadwal yang sudah ada.');
+                ->with('error', implode(' ', $conflicts));
         }
 
-        $this->jadwalService->createJadwal($validated);
+        $jadwal = $this->jadwalService->createJadwal($validated);
+
+        // Auto-generate pertemuan if periode exists
+        $generated = $this->pertemuanService->generatePertemuanForJadwal($jadwal);
+        $message = 'Jadwal mengajar berhasil ditambahkan.';
+        if ($generated > 0) {
+            $message .= " ({$generated} pertemuan ter-generate)";
+        }
 
         return redirect()
             ->route('admin.jadwal-mengajar.index')
-            ->with('success', 'Jadwal mengajar berhasil ditambahkan.');
+            ->with('success', $message);
     }
 
     /**
@@ -149,8 +160,9 @@ class JadwalMengajarController extends Controller
         $validated['is_active'] = $request->boolean('is_active', true);
 
         // Check for conflict (exclude current jadwal)
-        $hasConflict = $this->jadwalService->hasConflict(
+        $conflicts = $this->jadwalService->checkConflicts(
             kelasId: $validated['kelas_id'],
+            userId: $validated['user_id'],
             hari: Hari::from($validated['hari']),
             jamMulai: $validated['jam_mulai'],
             jamSelesai: $validated['jam_selesai'],
@@ -159,10 +171,10 @@ class JadwalMengajarController extends Controller
             excludeJadwalId: $id
         );
 
-        if ($hasConflict) {
+        if (!empty($conflicts)) {
             return back()
                 ->withInput()
-                ->with('error', 'Jadwal bentrok dengan jadwal yang sudah ada.');
+                ->with('error', implode(' ', $conflicts));
         }
 
         $this->jadwalService->updateJadwal($id, $validated);

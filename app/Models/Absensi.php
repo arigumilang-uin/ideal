@@ -27,6 +27,7 @@ class Absensi extends Model
     protected $fillable = [
         'siswa_id',
         'jadwal_mengajar_id',
+        'pertemuan_id',
         'tanggal',
         'status',
         'keterangan',
@@ -91,6 +92,14 @@ class Absensi extends Model
     public function pencatat(): BelongsTo
     {
         return $this->belongsTo(User::class, 'pencatat_user_id');
+    }
+
+    /**
+     * Pertemuan spesifik (tanggal real)
+     */
+    public function pertemuan(): BelongsTo
+    {
+        return $this->belongsTo(Pertemuan::class, 'pertemuan_id');
     }
 
     /**
@@ -159,6 +168,14 @@ class Absensi extends Model
     public function scopeForJadwal($query, int $jadwalId)
     {
         return $query->where('jadwal_mengajar_id', $jadwalId);
+    }
+
+    /**
+     * Scope: Filter by pertemuan
+     */
+    public function scopeForPertemuan($query, int $pertemuanId)
+    {
+        return $query->where('pertemuan_id', $pertemuanId);
     }
 
     /**

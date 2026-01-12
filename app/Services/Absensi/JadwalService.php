@@ -98,7 +98,67 @@ class JadwalService
     }
 
     /**
-     * Check for scheduling conflict
+     * Check for scheduling conflict (ENHANCED)
+     * 
+     * Cek 2 jenis conflict:
+     * 1. Kelas tidak bisa punya 2 mata pelajaran di waktu yang sama
+     * 2. Guru tidak bisa mengajar 2 kelas di waktu yang sama
+     * 
+     * @return array Array of conflict messages (empty if no conflict)
+     */
+    public function checkConflicts(
+        int $kelasId,
+        int $userId,
+        Hari $hari,
+        string $jamMulai,
+        string $jamSelesai,
+        Semester $semester,
+        string $tahunAjaran,
+        ?int $excludeJadwalId = null
+    ): array {
+        $conflicts = [];
+        
+        // Build base query for time overlap check
+        $timeOverlapCondition = function($query) use ($jamMulai, $jamSelesai) {
+            $query->where('jam_mulai', '<', $jamSelesai)
+                  ->where('jam_selesai', '>', $jamMulai);
+        };
+
+        // 1. Check KELAS double-booking
+        $kelasQuery = JadwalMengajar::where('kelas_id', $kelasId)
+            ->where('hari', $hari)
+            ->where('semester', $semester)
+            ->where('tahun_ajaran', $tahunAjaran)
+            ->where($timeOverlapCondition);
+
+        if ($excludeJadwalId) {
+            $kelasQuery->where('id', '!=', $excludeJadwalId);
+        }
+
+        if ($kelasQuery->exists()) {
+            $conflicts[] = 'Kelas sudah memiliki jadwal mata pelajaran lain di waktu tersebut';
+        }
+
+        // 2. Check GURU double-booking
+        $guruQuery = JadwalMengajar::where('user_id', $userId)
+            ->where('hari', $hari)
+            ->where('semester', $semester)
+            ->where('tahun_ajaran', $tahunAjaran)
+            ->where($timeOverlapCondition);
+
+        if ($excludeJadwalId) {
+            $guruQuery->where('id', '!=', $excludeJadwalId);
+        }
+
+        if ($guruQuery->exists()) {
+            $conflicts[] = 'Guru sudah mengajar di kelas lain pada waktu tersebut';
+        }
+
+        return $conflicts;
+    }
+
+    /**
+     * Check for scheduling conflict (legacy - returns bool)
      */
     public function hasConflict(
         int $kelasId,
@@ -107,18 +167,26 @@ class JadwalService
         string $jamSelesai,
         Semester $semester,
         string $tahunAjaran,
-        ?int $excludeJadwalId = null
+        ?int $excludeJadwalId = null,
+        ?int $userId = null
     ): bool {
+        // Use new checkConflicts method if userId provided
+        if ($userId !== null) {
+            $conflicts = $this->checkConflicts(
+                $kelasId, $userId, $hari, $jamMulai, $jamSelesai, 
+                $semester, $tahunAjaran, $excludeJadwalId
+            );
+            return !empty($conflicts);
+        }
+
+        // Legacy: only check kelas conflict
         $query = JadwalMengajar::where('kelas_id', $kelasId)
             ->where('hari', $hari)
             ->where('semester', $semester)
             ->where('tahun_ajaran', $tahunAjaran)
             ->where(function($q) use ($jamMulai, $jamSelesai) {
-                // Check for time overlap
-                $q->where(function($inner) use ($jamMulai, $jamSelesai) {
-                    $inner->where('jam_mulai', '<', $jamSelesai)
-                          ->where('jam_selesai', '>', $jamMulai);
-                });
+                $q->where('jam_mulai', '<', $jamSelesai)
+                  ->where('jam_selesai', '>', $jamMulai);
             });
 
         if ($excludeJadwalId) {

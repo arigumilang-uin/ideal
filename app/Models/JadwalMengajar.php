@@ -77,6 +77,14 @@ class JadwalMengajar extends Model
         return $this->hasMany(Absensi::class, 'jadwal_mengajar_id');
     }
 
+    /**
+     * Pertemuan yang ter-generate dari jadwal ini
+     */
+    public function pertemuan(): HasMany
+    {
+        return $this->hasMany(Pertemuan::class, 'jadwal_mengajar_id');
+    }
+
     // =====================================================================
     // ----------------------- QUERY SCOPES -----------------------
     // =====================================================================

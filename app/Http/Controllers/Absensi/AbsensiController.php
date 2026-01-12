@@ -5,83 +5,182 @@ namespace App\Http\Controllers\Absensi;
 use App\Http\Controllers\Controller;
 use App\Services\Absensi\AbsensiService;
 use App\Services\Absensi\JadwalService;
+use App\Services\Absensi\PertemuanService;
 use App\Models\JadwalMengajar;
+use App\Models\Pertemuan;
 use App\Models\Siswa;
+use App\Models\Absensi;
+use App\Enums\Hari;
+use App\Enums\Semester;
 use App\Enums\StatusAbsensi;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 
 /**
  * Absensi Controller
  * 
- * Handle proses pencatatan absensi dan laporan.
+ * Handle proses pencatatan absensi dengan grid view.
  */
 class AbsensiController extends Controller
 {
     public function __construct(
         private AbsensiService $absensiService,
-        private JadwalService $jadwalService
+        private JadwalService $jadwalService,
+        private PertemuanService $pertemuanService
     ) {}
 
     /**
-     * Dashboard absensi - tampilkan jadwal hari ini
+     * Dashboard absensi - tampilkan SEMUA jadwal per hari
      */
     public function index(): View
     {
         $user = auth()->user();
-        $jadwalHariIni = $this->jadwalService->getJadwalHariIniForGuru($user->id);
+        $jadwalByHari = $this->jadwalService->getJadwalForGuru($user->id);
         
-        // Mark jadwal yang sudah diabsen
-        $jadwalHariIni->each(function($jadwal) {
-            $jadwal->sudah_diabsen = $this->absensiService->isJadwalSudahDiabsen(
-                $jadwal->id, 
-                today()->toDateString()
-            );
-            
-            if ($jadwal->sudah_diabsen) {
-                $jadwal->statistik = $this->absensiService->getStatistikAbsensi(
-                    $jadwal->id,
-                    today()->toDateString()
-                );
+        // Add pertemuan count for each jadwal
+        foreach ($jadwalByHari as $hari => $jadwalList) {
+            foreach ($jadwalList as $jadwal) {
+                $jadwal->totalPertemuan = $jadwal->pertemuan()->count();
             }
-        });
+        }
 
         return view('absensi.index', [
-            'jadwalHariIni' => $jadwalHariIni,
-            'tanggal' => today(),
+            'jadwalByHari' => $jadwalByHari,
+            'hariIni' => Hari::today()?->value,
+            'currentSemester' => Semester::current()->value,
+            'currentTahunAjaran' => Semester::currentTahunAjaran(),
         ]);
     }
 
     /**
-     * Form absensi untuk jadwal tertentu
+     * Grid view absensi - siswa sebagai baris, pertemuan sebagai kolom
      */
-    public function create(int $jadwalId, Request $request): View
+    public function grid(int $jadwalId): View
     {
-        $tanggal = $request->input('tanggal', today()->toDateString());
-        
         $jadwal = JadwalMengajar::with(['mataPelajaran', 'kelas.jurusan', 'guru'])
             ->findOrFail($jadwalId);
+        
+        // Get all pertemuan for this jadwal
+        $pertemuanList = Pertemuan::forJadwal($jadwalId)
+            ->ordered()
+            ->get();
         
         // Get siswa di kelas ini
         $siswaList = Siswa::where('kelas_id', $jadwal->kelas_id)
             ->orderBy('nama_siswa')
             ->get();
         
-        // Get existing absensi jika sudah pernah diabsen
-        $existingAbsensi = $this->absensiService->getAbsensiByJadwal($jadwalId, $tanggal);
+        // Build absensi matrix [siswa_id][pertemuan_id] => Absensi
+        $absensiMatrix = [];
+        $allAbsensi = Absensi::where('jadwal_mengajar_id', $jadwalId)
+            ->whereIn('pertemuan_id', $pertemuanList->pluck('id'))
+            ->get();
         
-        return view('absensi.create', [
+        foreach ($allAbsensi as $absensi) {
+            $absensiMatrix[$absensi->siswa_id][$absensi->pertemuan_id] = $absensi;
+        }
+
+        // Find today's pertemuan if any
+        $todayPertemuan = $pertemuanList->first(fn($p) => $p->tanggal->isToday());
+
+        return view('absensi.grid', [
             'jadwal' => $jadwal,
+            'pertemuanList' => $pertemuanList,
             'siswaList' => $siswaList,
-            'existingAbsensi' => $existingAbsensi,
-            'tanggal' => $tanggal,
-            'statusOptions' => StatusAbsensi::forSelect(),
+            'absensiMatrix' => $absensiMatrix,
+            'todayPertemuan' => $todayPertemuan,
         ]);
     }
 
     /**
-     * Simpan absensi batch
+     * Update single absensi via AJAX
+     */
+    public function updateSingle(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'siswa_id' => 'required|exists:siswa,id',
+            'pertemuan_id' => 'required|exists:pertemuan,id',
+            'status' => 'nullable|in:Hadir,Sakit,Izin,Alfa,',
+        ]);
+
+        try {
+            $pertemuan = Pertemuan::with('jadwalMengajar')->findOrFail($validated['pertemuan_id']);
+            
+            if (empty($validated['status'])) {
+                // Delete existing absensi
+                Absensi::where('siswa_id', $validated['siswa_id'])
+                    ->where('pertemuan_id', $validated['pertemuan_id'])
+                    ->delete();
+            } else {
+                // Create or update
+                $absensi = $this->absensiService->recordAbsensiWithPertemuan(
+                    siswaId: $validated['siswa_id'],
+                    pertemuanId: $validated['pertemuan_id'],
+                    jadwalMengajarId: $pertemuan->jadwal_mengajar_id,
+                    tanggal: $pertemuan->tanggal->toDateString(),
+                    status: StatusAbsensi::from($validated['status']),
+                    pencatatId: auth()->id()
+                );
+            }
+
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Batch update all siswa for specific pertemuan
+     */
+    public function batchUpdate(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'pertemuan_id' => 'required|exists:pertemuan,id',
+            'status' => 'required|in:Hadir,Sakit,Izin,Alfa',
+        ]);
+
+        try {
+            $pertemuan = Pertemuan::with('jadwalMengajar.kelas')->findOrFail($validated['pertemuan_id']);
+            $siswaList = Siswa::where('kelas_id', $pertemuan->jadwalMengajar->kelas_id)->get();
+
+            foreach ($siswaList as $siswa) {
+                $this->absensiService->recordAbsensiWithPertemuan(
+                    siswaId: $siswa->id,
+                    pertemuanId: $validated['pertemuan_id'],
+                    jadwalMengajarId: $pertemuan->jadwal_mengajar_id,
+                    tanggal: $pertemuan->tanggal->toDateString(),
+                    status: StatusAbsensi::from($validated['status']),
+                    pencatatId: auth()->id()
+                );
+            }
+
+            return response()->json([
+                'success' => true,
+                'count' => $siswaList->count()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Form absensi untuk jadwal tertentu (legacy - redirect to grid)
+     */
+    public function create(int $jadwalId, Request $request): RedirectResponse
+    {
+        return redirect()->route('absensi.grid', $jadwalId);
+    }
+
+    /**
+     * Simpan absensi batch (legacy)
      */
     public function store(Request $request): RedirectResponse
     {

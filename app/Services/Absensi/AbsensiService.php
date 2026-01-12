@@ -70,6 +70,45 @@ class AbsensiService
     }
 
     /**
+     * Catat absensi dengan pertemuan (untuk grid view)
+     */
+    public function recordAbsensiWithPertemuan(
+        int $siswaId,
+        int $pertemuanId,
+        int $jadwalMengajarId,
+        string $tanggal,
+        StatusAbsensi $status,
+        int $pencatatId,
+        ?string $keterangan = null
+    ): Absensi {
+        return DB::transaction(function() use ($siswaId, $pertemuanId, $jadwalMengajarId, $tanggal, $status, $pencatatId, $keterangan) {
+            // Hapus absensi existing jika ada (update)
+            Absensi::where('siswa_id', $siswaId)
+                ->where('pertemuan_id', $pertemuanId)
+                ->delete();
+
+            // Buat absensi baru
+            $absensi = Absensi::create([
+                'siswa_id' => $siswaId,
+                'pertemuan_id' => $pertemuanId,
+                'jadwal_mengajar_id' => $jadwalMengajarId,
+                'tanggal' => $tanggal,
+                'status' => $status,
+                'keterangan' => $keterangan,
+                'pencatat_user_id' => $pencatatId,
+                'absen_at' => now(),
+            ]);
+
+            // Jika status ALFA, otomatis catat sebagai pelanggaran
+            if ($status === StatusAbsensi::Alfa) {
+                $this->recordAlfaAsPelanggaran($absensi, $pencatatId);
+            }
+
+            return $absensi;
+        });
+    }
+
+    /**
      * Catat absensi batch untuk semua siswa dalam satu jadwal
      * 
      * @param int $jadwalMengajarId

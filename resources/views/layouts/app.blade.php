@@ -46,18 +46,27 @@
         <!-- Sidebar Overlay (Mobile) -->
         <div class="sidebar-overlay" 
              :class="{ 'active': open }" 
-             @click="close()"
-             x-show="open"
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:leave="transition ease-in duration-200"></div>
+             @click="close()"></div>
         
         <!-- Sidebar -->
-        <aside class="sidebar" :class="{ 'open': open }">
+        <aside id="sidebar" class="sidebar" :class="{ 'open': open, 'animated': animated }">
             @include('components.sidebar')
         </aside>
         
+        <!-- Script to apply initial state immediately to prevent flicker -->
+        <script>
+            (function() {
+                if (window.innerWidth >= 1024) {
+                    const saved = localStorage.getItem('sidebar_open');
+                    if (saved === null || saved === 'true') {
+                        document.getElementById('sidebar').classList.add('open');
+                    }
+                }
+            })();
+        </script>
+        
         <!-- Main Content -->
-        <main class="main-content flex flex-col min-h-screen">
+        <main class="main-content flex flex-col min-h-screen" :class="{ 'animated': animated }">
             
             <!-- Unified Sticky Header Wrapper -->
             <!-- Wraps both Navbar and Page Header to ensure they stick together as a single unit -->

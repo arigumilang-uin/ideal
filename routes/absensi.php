@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Absensi\AbsensiController;
 use App\Http\Controllers\Admin\MataPelajaranController;
 use App\Http\Controllers\Admin\JadwalMengajarController;
+use App\Http\Controllers\Admin\PeriodeSemesterController;
 
 /*
 |--------------------------------------------------------------------------
@@ -21,13 +22,22 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
     // ===================================================================
     
     Route::prefix('absensi')->name('absensi.')->group(function () {
-        // Dashboard - Jadwal hari ini
+        // Dashboard - Semua jadwal per hari
         Route::get('/', [AbsensiController::class, 'index'])->name('index');
         
-        // Form absensi untuk jadwal tertentu
+        // Grid view absensi (siswa x pertemuan)
+        Route::get('/{jadwalId}/grid', [AbsensiController::class, 'grid'])->name('grid');
+        
+        // AJAX: Update single absensi
+        Route::post('/update-single', [AbsensiController::class, 'updateSingle'])->name('updateSingle');
+        
+        // AJAX: Batch update semua siswa
+        Route::post('/batch-update', [AbsensiController::class, 'batchUpdate'])->name('batchUpdate');
+        
+        // Form absensi (legacy - redirect to grid)
         Route::get('/{jadwalId}/create', [AbsensiController::class, 'create'])->name('create');
         
-        // Simpan absensi batch
+        // Simpan absensi batch (legacy)
         Route::post('/store', [AbsensiController::class, 'store'])->name('store');
         
         // Lihat detail absensi
@@ -38,11 +48,23 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
     });
 
     // ===================================================================
-    // ADMIN ROUTES - MATA PELAJARAN & JADWAL MENGAJAR
+    // ADMIN ROUTES - MATA PELAJARAN & JADWAL MENGAJAR & PERIODE SEMESTER
     // ===================================================================
     
     Route::prefix('admin')->name('admin.')->middleware('role:Operator Sekolah,Developer')->group(function () {
         
+        // --- Periode Semester ---
+        Route::prefix('periode-semester')->name('periode-semester.')->group(function () {
+            Route::get('/', [PeriodeSemesterController::class, 'index'])->name('index');
+            Route::get('/create', [PeriodeSemesterController::class, 'create'])->name('create');
+            Route::post('/', [PeriodeSemesterController::class, 'store'])->name('store');
+            Route::get('/{id}/edit', [PeriodeSemesterController::class, 'edit'])->name('edit');
+            Route::put('/{id}', [PeriodeSemesterController::class, 'update'])->name('update');
+            Route::delete('/{id}', [PeriodeSemesterController::class, 'destroy'])->name('destroy');
+            Route::post('/{id}/set-active', [PeriodeSemesterController::class, 'setActive'])->name('setActive');
+            Route::post('/{id}/generate-pertemuan', [PeriodeSemesterController::class, 'generatePertemuan'])->name('generatePertemuan');
+        });
+
         // --- Mata Pelajaran ---
         Route::prefix('mata-pelajaran')->name('mata-pelajaran.')->group(function () {
             Route::get('/', [MataPelajaranController::class, 'index'])->name('index');
