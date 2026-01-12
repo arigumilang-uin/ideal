@@ -35,6 +35,15 @@ class JurusanSeeder extends Seeder
                 'nama_jurusan' => 'Akuntansi dan Keuangan Lembaga',
                 'kode_jurusan' => 'AKL',
             ],
+
+            [
+                'nama_jurusan' => 'Jurusan A',
+                'kode_jurusan' => 'JA',                
+            ],
+            [
+                'nama_jurusan' => 'Jurusan B',
+                'kode_jurusan' => 'JB',
+            ],
         ];
 
         foreach ($jurusan as $j) {
