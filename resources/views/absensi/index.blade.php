@@ -69,9 +69,24 @@
                             @foreach($jadwalList as $jadwal)
                                 <div class="px-6 py-4 flex justify-between items-center hover:bg-slate-50 transition">
                                     <div class="flex items-center gap-4">
-                                        <div class="w-16 text-center">
-                                            <div class="text-sm font-bold text-slate-700">{{ substr($jadwal->jam_mulai, 0, 5) }}</div>
-                                            <div class="text-[10px] text-slate-400">{{ substr($jadwal->jam_selesai, 0, 5) }}</div>
+                                        <div class="w-auto min-w-[120px] text-center">
+                                            @if($jadwal->time_display ?? false)
+                                                {{-- New format: shows all sessions with break info --}}
+                                                <div class="text-sm font-bold text-slate-700">{{ $jadwal->time_display }}</div>
+                                                @if(($jadwal->session_count ?? 1) > 1)
+                                                    <div class="text-[10px] text-amber-600 font-medium">{{ $jadwal->session_count }} sesi</div>
+                                                @endif
+                                            @else
+                                                {{-- Fallback to template_jam --}}
+                                                @php
+                                                    $jamMulai = $jadwal->templateJam?->jam_mulai;
+                                                    $jamSelesai = $jadwal->templateJam?->jam_selesai;
+                                                    $jamMulai = $jamMulai instanceof \DateTime ? $jamMulai->format('H:i') : substr($jamMulai ?? '', 0, 5);
+                                                    $jamSelesai = $jamSelesai instanceof \DateTime ? $jamSelesai->format('H:i') : substr($jamSelesai ?? '', 0, 5);
+                                                @endphp
+                                                <div class="text-sm font-bold text-slate-700">{{ $jamMulai }}</div>
+                                                <div class="text-[10px] text-slate-400">{{ $jamSelesai }}</div>
+                                            @endif
                                         </div>
                                         <div class="w-px h-10 bg-slate-200"></div>
                                         <div>

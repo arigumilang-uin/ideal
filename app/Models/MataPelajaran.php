@@ -4,12 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Model Mata Pelajaran
  * 
  * Daftar mata pelajaran yang diajarkan di sekolah.
+ * Sekarang terikat ke kurikulum tertentu.
  */
 class MataPelajaran extends Model
 {
@@ -18,8 +20,10 @@ class MataPelajaran extends Model
     protected $table = 'mata_pelajaran';
 
     protected $fillable = [
+        'kurikulum_id',
         'nama_mapel',
         'kode_mapel',
+        'kelompok',
         'deskripsi',
         'is_active',
     ];
@@ -28,12 +32,25 @@ class MataPelajaran extends Model
         'is_active' => 'boolean',
     ];
 
+    // Kelompok constants
+    const KELOMPOK_A = 'A'; // Umum
+    const KELOMPOK_B = 'B'; // Kejuruan
+    const KELOMPOK_C = 'C'; // Pilihan/Muatan Lokal
+
     // =====================================================================
     // ----------------------- RELATIONSHIPS -----------------------
     // =====================================================================
 
     /**
-     * Mata pelajaran memiliki banyak jadwal mengajar.
+     * Kurikulum yang memiliki mata pelajaran ini
+     */
+    public function kurikulum(): BelongsTo
+    {
+        return $this->belongsTo(Kurikulum::class, 'kurikulum_id');
+    }
+
+    /**
+     * Mata pelajaran memiliki banyak jadwal mengajar
      */
     public function jadwalMengajar(): HasMany
     {
@@ -53,6 +70,22 @@ class MataPelajaran extends Model
     }
 
     /**
+     * Scope: Filter by kurikulum
+     */
+    public function scopeForKurikulum($query, int $kurikulumId)
+    {
+        return $query->where('kurikulum_id', $kurikulumId);
+    }
+
+    /**
+     * Scope: Filter by kelompok
+     */
+    public function scopeForKelompok($query, string $kelompok)
+    {
+        return $query->where('kelompok', $kelompok);
+    }
+
+    /**
      * Scope: Search by name or code
      */
     public function scopeSearch($query, ?string $keyword)
@@ -63,6 +96,38 @@ class MataPelajaran extends Model
             $q->where('nama_mapel', 'like', "%{$keyword}%")
               ->orWhere('kode_mapel', 'like', "%{$keyword}%");
         });
+    }
+
+    // =====================================================================
+    // ----------------------- STATIC METHODS -----------------------
+    // =====================================================================
+
+    /**
+     * Get mapel for a specific kurikulum (for dropdowns)
+     */
+    public static function getForKurikulum(int $kurikulumId): \Illuminate\Database\Eloquent\Collection
+    {
+        return self::forKurikulum($kurikulumId)
+            ->active()
+            ->orderBy('nama_mapel')
+            ->get();
+    }
+
+    /**
+     * Get mapel for a kelas (by determining kurikulum from tingkat)
+     * 
+     * @param int $kelasId
+     * @param int $periodeId
+     */
+    public static function getForKelas(int $kelasId, int $periodeId): \Illuminate\Database\Eloquent\Collection
+    {
+        $kelas = Kelas::find($kelasId);
+        if (!$kelas) return collect();
+        
+        $kurikulumId = TingkatKurikulum::getKurikulumIdFor($periodeId, $kelas->tingkat);
+        if (!$kurikulumId) return collect();
+        
+        return self::getForKurikulum($kurikulumId);
     }
 
     // =====================================================================
@@ -78,5 +143,18 @@ class MataPelajaran extends Model
             return "{$this->kode_mapel} - {$this->nama_mapel}";
         }
         return $this->nama_mapel;
+    }
+
+    /**
+     * Get kelompok label
+     */
+    public function getKelompokLabelAttribute(): string
+    {
+        return match($this->kelompok) {
+            self::KELOMPOK_A => 'Umum',
+            self::KELOMPOK_B => 'Kejuruan',
+            self::KELOMPOK_C => 'Pilihan',
+            default => '-',
+        };
     }
 }

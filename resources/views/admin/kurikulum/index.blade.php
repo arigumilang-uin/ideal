@@ -1,0 +1,100 @@
+@extends('layouts.app')
+
+@section('title', 'Kurikulum')
+
+@section('content')
+<div class="space-y-6">
+    {{-- Page Header --}}
+    <x-page-header 
+        title="Kurikulum" 
+        subtitle="Kelola data master kurikulum yang digunakan di sekolah"
+        :total="$kurikulums->count()" 
+    />
+
+    {{-- Action Bar --}}
+    <div class="flex justify-between items-center">
+        <div></div>
+        <a href="{{ route('admin.kurikulum.create') }}" class="btn btn-primary">
+            <x-ui.icon name="plus" size="16" />
+            <span>Tambah Kurikulum</span>
+        </a>
+    </div>
+
+    {{-- Table --}}
+    @if($kurikulums->count() > 0)
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th class="w-20">Kode</th>
+                        <th>Nama Kurikulum</th>
+                        <th class="w-24">Tahun</th>
+                        <th class="w-28 text-center">Mapel</th>
+                        <th class="w-24 text-center">Status</th>
+                        <th class="w-28 text-center">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($kurikulums as $kurikulum)
+                        <tr>
+                            <td>
+                                <span class="font-mono text-sm font-medium text-slate-700">{{ $kurikulum->kode }}</span>
+                            </td>
+                            <td>
+                                <div class="font-medium text-slate-900">{{ $kurikulum->nama }}</div>
+                                @if($kurikulum->deskripsi)
+                                    <div class="text-sm text-slate-500 truncate max-w-md">{{ $kurikulum->deskripsi }}</div>
+                                @endif
+                            </td>
+                            <td class="text-center">
+                                @if($kurikulum->tahun_berlaku)
+                                    <span class="badge badge-slate">{{ $kurikulum->tahun_berlaku }}</span>
+                                @else
+                                    <span class="text-slate-400">-</span>
+                                @endif
+                            </td>
+                            <td class="text-center">
+                                <span class="badge badge-indigo">{{ $kurikulum->mata_pelajaran_count }} mapel</span>
+                            </td>
+                            <td class="text-center">
+                                @if($kurikulum->is_active)
+                                    <span class="badge badge-success">Aktif</span>
+                                @else
+                                    <span class="badge badge-secondary">Nonaktif</span>
+                                @endif
+                            </td>
+                            <td>
+                                <div class="flex items-center justify-center gap-1">
+                                    <a href="{{ route('admin.kurikulum.edit', $kurikulum->id) }}" 
+                                       class="btn btn-sm btn-icon btn-white" title="Edit">
+                                        <x-ui.icon name="edit" size="14" />
+                                    </a>
+                                    @if($kurikulum->mata_pelajaran_count == 0)
+                                        <form action="{{ route('admin.kurikulum.destroy', $kurikulum->id) }}" 
+                                              method="POST" 
+                                              onsubmit="return confirm('Hapus kurikulum ini?')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-icon btn-white text-red-600 hover:text-red-700" title="Hapus">
+                                                <x-ui.icon name="trash" size="14" />
+                                            </button>
+                                        </form>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @else
+        <x-ui.empty-state
+            icon="layers"
+            title="Belum Ada Kurikulum"
+            description="Tambahkan kurikulum untuk memulai."
+            :actionUrl="route('admin.kurikulum.create')"
+            actionLabel="Tambah Kurikulum"
+        />
+    @endif
+</div>
+@endsection

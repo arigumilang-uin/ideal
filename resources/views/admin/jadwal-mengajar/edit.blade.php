@@ -20,6 +20,9 @@
         <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
             <div class="px-6 py-4 border-b border-slate-200 bg-amber-50">
                 <h2 class="text-lg font-bold text-amber-900 m-0">Edit Jadwal Mengajar</h2>
+                <p class="text-sm text-amber-700 m-0 mt-1">
+                    Periode: <strong>{{ $jadwal->semester->value }} {{ $jadwal->tahun_ajaran }}</strong>
+                </p>
             </div>
             <form action="{{ route('admin.jadwal-mengajar.update', $jadwal->id) }}" method="POST" class="p-6 space-y-4">
                 @csrf @method('PUT')
@@ -28,7 +31,7 @@
                         <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Guru *</label>
                         <select name="user_id" required class="w-full px-4 py-2 rounded-lg border border-slate-200 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none">
                             @foreach($guru as $g)
-                                <option value="{{ $g->id }}" {{ old('user_id', $jadwal->user_id) == $g->id ? 'selected' : '' }}>{{ $g->nama }}</option>
+                                <option value="{{ $g->id }}" {{ old('user_id', $jadwal->user_id) == $g->id ? 'selected' : '' }}>{{ $g->username }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -73,20 +76,13 @@
                         <input type="time" name="jam_selesai" value="{{ old('jam_selesai', $jamSelesai) }}" required class="w-full px-4 py-2 rounded-lg border border-slate-200 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none">
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Semester *</label>
-                        <select name="semester" required class="w-full px-4 py-2 rounded-lg border border-slate-200 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none">
-                            @foreach($semester as $s)
-                                <option value="{{ $s['value'] }}" {{ old('semester', $jadwal->semester->value) == $s['value'] ? 'selected' : '' }}>{{ $s['label'] }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Tahun Ajaran *</label>
-                        <input type="text" name="tahun_ajaran" value="{{ old('tahun_ajaran', $jadwal->tahun_ajaran) }}" required class="w-full px-4 py-2 rounded-lg border border-slate-200 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none">
-                    </div>
+
+                {{-- Semester dan Tahun Ajaran ditampilkan readonly karena sudah tertaut dengan periode --}}
+                <div class="p-3 rounded-lg bg-slate-50 border border-slate-200 text-sm text-slate-600">
+                    <i class="fas fa-info-circle mr-1 text-slate-400"></i>
+                    Jadwal ini tertaut dengan periode <strong>{{ $jadwal->semester->value }} {{ $jadwal->tahun_ajaran }}</strong>
                 </div>
+
                 <div class="flex items-center gap-2">
                     <input type="checkbox" name="is_active" value="1" {{ $jadwal->is_active ? 'checked' : '' }} id="isActive" class="rounded border-slate-300">
                     <label for="isActive" class="text-sm text-slate-700">Aktif</label>

@@ -220,6 +220,12 @@
         <div class="sidebar-section">Admin Pelajaran</div>
         <ul class="sidebar-menu">
             <li class="sidebar-menu-item">
+                <a href="{{ route('admin.kurikulum.index') }}" class="sidebar-menu-link {{ Request::routeIs('admin.kurikulum.*') ? 'active' : '' }}">
+                    <x-ui.icon name="layers" class="sidebar-menu-icon" />
+                    <span>Kurikulum</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item">
                 <a href="{{ route('admin.periode-semester.index') }}" class="sidebar-menu-link {{ Request::routeIs('admin.periode-semester.*') ? 'active' : '' }}">
                     <x-ui.icon name="calendar" class="sidebar-menu-icon" />
                     <span>Periode Semester</span>
@@ -232,8 +238,14 @@
                 </a>
             </li>
             <li class="sidebar-menu-item">
-                <a href="{{ route('admin.jadwal-mengajar.index') }}" class="sidebar-menu-link {{ Request::routeIs('admin.jadwal-mengajar.*') ? 'active' : '' }}">
+                <a href="{{ route('admin.template-jam.index') }}" class="sidebar-menu-link {{ Request::routeIs('admin.template-jam.*') ? 'active' : '' }}">
                     <x-ui.icon name="clock" class="sidebar-menu-icon" />
+                    <span>Template Jam</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item">
+                <a href="{{ route('admin.jadwal-mengajar.index') }}" class="sidebar-menu-link {{ Request::routeIs('admin.jadwal-mengajar.*') ? 'active' : '' }}">
+                    <x-ui.icon name="grid" class="sidebar-menu-icon" />
                     <span>Jadwal Mengajar</span>
                 </a>
             </li>

@@ -46,7 +46,6 @@ class PeriodeSemesterController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'nama_periode' => 'required|string|max:50',
             'semester' => 'required|in:Ganjil,Genap',
             'tahun_ajaran' => 'required|string|max:10|regex:/^\d{4}\/\d{4}$/',
             'tanggal_mulai' => 'required|date',
@@ -54,6 +53,9 @@ class PeriodeSemesterController extends Controller
         ], [
             'tahun_ajaran.regex' => 'Format tahun ajaran harus YYYY/YYYY (contoh: 2025/2026)',
         ]);
+
+        // Auto-generate nama_periode from semester + tahun_ajaran
+        $validated['nama_periode'] = $validated['semester'] . ' ' . $validated['tahun_ajaran'];
 
         // Check duplicate
         $exists = PeriodeSemester::where('semester', $validated['semester'])
@@ -66,19 +68,11 @@ class PeriodeSemesterController extends Controller
                 ->with('error', 'Periode untuk semester dan tahun ajaran ini sudah ada.');
         }
 
-        $periode = PeriodeSemester::create($validated);
-
-        // Auto-generate pertemuan for existing jadwal
-        $generated = $this->pertemuanService->generateAllPertemuanForPeriode($periode);
-
-        $message = 'Periode semester berhasil ditambahkan.';
-        if ($generated > 0) {
-            $message .= " ({$generated} pertemuan ter-generate untuk jadwal yang sudah ada)";
-        }
+        PeriodeSemester::create($validated);
 
         return redirect()
             ->route('admin.periode-semester.index')
-            ->with('success', $message);
+            ->with('success', 'Periode semester berhasil ditambahkan.');
     }
 
     /**
@@ -101,7 +95,6 @@ class PeriodeSemesterController extends Controller
         $periode = PeriodeSemester::findOrFail($id);
 
         $validated = $request->validate([
-            'nama_periode' => 'required|string|max:50',
             'semester' => 'required|in:Ganjil,Genap',
             'tahun_ajaran' => 'required|string|max:10|regex:/^\d{4}\/\d{4}$/',
             'tanggal_mulai' => 'required|date',
@@ -109,6 +102,9 @@ class PeriodeSemesterController extends Controller
         ], [
             'tahun_ajaran.regex' => 'Format tahun ajaran harus YYYY/YYYY (contoh: 2025/2026)',
         ]);
+
+        // Auto-generate nama_periode from semester + tahun_ajaran
+        $validated['nama_periode'] = $validated['semester'] . ' ' . $validated['tahun_ajaran'];
 
         // Check duplicate (exclude current)
         $exists = PeriodeSemester::where('semester', $validated['semester'])
@@ -174,5 +170,68 @@ class PeriodeSemesterController extends Controller
         return redirect()
             ->route('admin.periode-semester.index')
             ->with('success', 'Periode semester berhasil dihapus.');
+    }
+
+    /**
+     * Show tingkat kurikulum configuration for a period
+     */
+    public function tingkatKurikulum(int $id): View
+    {
+        $periode = PeriodeSemester::with('tingkatKurikulum.kurikulum')->findOrFail($id);
+        $kurikulums = \App\Models\Kurikulum::active()->orderBy('nama')->get();
+        
+        // Get current configuration for each tingkat
+        $tingkatConfig = [];
+        foreach (['X', 'XI', 'XII'] as $tingkat) {
+            $config = $periode->tingkatKurikulum()->where('tingkat', $tingkat)->first();
+            $tingkatConfig[$tingkat] = $config?->kurikulum_id;
+        }
+
+        return view('admin.periode-semester.tingkat-kurikulum', [
+            'periode' => $periode,
+            'kurikulums' => $kurikulums,
+            'tingkatConfig' => $tingkatConfig,
+        ]);
+    }
+
+    /**
+     * Save tingkat kurikulum configuration
+     */
+    public function saveTingkatKurikulum(Request $request, int $id): RedirectResponse
+    {
+        $periode = PeriodeSemester::findOrFail($id);
+
+        $validated = $request->validate([
+            'tingkat' => 'required|array',
+            'tingkat.X' => 'nullable|exists:kurikulum,id',
+            'tingkat.XI' => 'nullable|exists:kurikulum,id',
+            'tingkat.XII' => 'nullable|exists:kurikulum,id',
+        ]);
+
+        // Update or create configuration for each tingkat
+        foreach (['X', 'XI', 'XII'] as $tingkat) {
+            $kurikulumId = $validated['tingkat'][$tingkat] ?? null;
+            
+            if ($kurikulumId) {
+                \App\Models\TingkatKurikulum::updateOrCreate(
+                    [
+                        'periode_semester_id' => $periode->id,
+                        'tingkat' => $tingkat,
+                    ],
+                    [
+                        'kurikulum_id' => $kurikulumId,
+                    ]
+                );
+            } else {
+                // Remove if no kurikulum selected
+                \App\Models\TingkatKurikulum::where('periode_semester_id', $periode->id)
+                    ->where('tingkat', $tingkat)
+                    ->delete();
+            }
+        }
+
+        return redirect()
+            ->route('admin.periode-semester.index')
+            ->with('success', "Konfigurasi kurikulum untuk periode '{$periode->nama_periode}' berhasil disimpan.");
     }
 }

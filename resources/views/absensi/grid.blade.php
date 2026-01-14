@@ -52,8 +52,14 @@
                 <h1 class="text-xl font-bold text-slate-800 m-0 flex items-center gap-2">
                     📋 {{ $jadwal->mataPelajaran->nama_mapel }}
                 </h1>
+                @php
+                    $displayJamMulai = $jadwal->merged_jam_mulai ?? $jadwal->jam_mulai;
+                    $displayJamSelesai = $jadwal->merged_jam_selesai ?? $jadwal->jam_selesai;
+                    $jamMulaiFormatted = $displayJamMulai instanceof \DateTime ? $displayJamMulai->format('H:i') : substr($displayJamMulai, 0, 5);
+                    $jamSelesaiFormatted = $displayJamSelesai instanceof \DateTime ? $displayJamSelesai->format('H:i') : substr($displayJamSelesai, 0, 5);
+                @endphp
                 <p class="text-xs text-slate-500 mt-0.5 m-0">
-                    {{ $jadwal->kelas->nama_kelas }} • {{ $jadwal->hari->value }} {{ $jadwal->waktu }} • {{ $pertemuanList->count() }} pertemuan
+                    {{ $jadwal->kelas->nama_kelas }} • {{ $jadwal->hari->value }} {{ $jamMulaiFormatted }} - {{ $jamSelesaiFormatted }} • {{ $pertemuanList->count() }} pertemuan
                 </p>
             </div>
         </div>

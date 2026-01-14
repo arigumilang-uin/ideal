@@ -16,17 +16,8 @@ class Kelas extends Model
      */
     public $timestamps = false;
 
-    /**
-     * Nama tabelnya adalah 'kelas', bukan 'kelas'.
-     * (Di Laravel 11, ini mungkin tidak perlu, tapi ini praktik yang aman).
-     */
     protected $table = 'kelas';
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'jurusan_id',
         'konsentrasi_id',
@@ -36,12 +27,11 @@ class Kelas extends Model
     ];
 
     // =====================================================================
-    // ----------------- DEFINISI RELASI ELOQUENT ------------------
+    // ----------------------- RELATIONSHIPS -----------------------
     // =====================================================================
 
     /**
      * Relasi Wajib: SATU Kelas DIMILIKI OLEH SATU Jurusan.
-     * (Foreign Key: jurusan_id)
      */
     public function jurusan(): BelongsTo
     {
@@ -50,7 +40,6 @@ class Kelas extends Model
 
     /**
      * Relasi Opsional: SATU Kelas DIMILIKI OLEH SATU Konsentrasi.
-     * (Foreign Key: konsentrasi_id)
      * Nullable: Kelas X umumnya belum masuk konsentrasi.
      */
     public function konsentrasi(): BelongsTo
@@ -60,7 +49,6 @@ class Kelas extends Model
 
     /**
      * Relasi Wajib: SATU Kelas DIMILIKI OLEH SATU Wali Kelas (User).
-     * (Foreign Key: wali_kelas_user_id)
      */
     public function waliKelas(): BelongsTo
     {
@@ -69,10 +57,99 @@ class Kelas extends Model
 
     /**
      * Relasi Wajib: SATU Kelas MEMILIKI BANYAK Siswa.
-     * (Foreign Key di tabel 'siswa': kelas_id)
      */
     public function siswa(): HasMany
     {
         return $this->hasMany(Siswa::class, 'kelas_id');
+    }
+
+    /**
+     * Jadwal mengajar untuk kelas ini
+     */
+    public function jadwalMengajar(): HasMany
+    {
+        return $this->hasMany(JadwalMengajar::class, 'kelas_id');
+    }
+
+    // =====================================================================
+    // ----------------------- QUERY SCOPES -----------------------
+    // =====================================================================
+
+    /**
+     * Scope: Filter by tingkat
+     */
+    public function scopeForTingkat($query, string $tingkat)
+    {
+        return $query->where('tingkat', $tingkat);
+    }
+
+    /**
+     * Scope: Filter by jurusan
+     */
+    public function scopeForJurusan($query, int $jurusanId)
+    {
+        return $query->where('jurusan_id', $jurusanId);
+    }
+
+    // =====================================================================
+    // ----------------------- KURIKULUM HELPERS -----------------------
+    // =====================================================================
+
+    /**
+     * Get kurikulum for this kelas in a specific periode
+     * 
+     * Kurikulum ditentukan berdasarkan tingkat kelas, bukan kelas individual.
+     * Semua kelas dengan tingkat yang sama punya kurikulum yang sama.
+     */
+    public function getKurikulumFor(int $periodeId): ?Kurikulum
+    {
+        return TingkatKurikulum::getKurikulumFor($periodeId, $this->tingkat);
+    }
+
+    /**
+     * Get kurikulum ID for this kelas in a specific periode
+     */
+    public function getKurikulumIdFor(int $periodeId): ?int
+    {
+        return TingkatKurikulum::getKurikulumIdFor($periodeId, $this->tingkat);
+    }
+
+    /**
+     * Get available mata pelajaran for this kelas in a specific periode
+     * 
+     * Returns mata pelajaran yang sesuai dengan kurikulum tingkat ini.
+     */
+    public function getAvailableMapel(int $periodeId): \Illuminate\Database\Eloquent\Collection
+    {
+        return MataPelajaran::getForKelas($this->id, $periodeId);
+    }
+
+    /**
+     * Check if kelas has kurikulum assigned for a periode
+     */
+    public function hasKurikulumFor(int $periodeId): bool
+    {
+        return $this->getKurikulumIdFor($periodeId) !== null;
+    }
+
+    // =====================================================================
+    // ----------------------- DISPLAY HELPERS -----------------------
+    // =====================================================================
+
+    /**
+     * Get display name with jurusan
+     */
+    public function getDisplayNameAttribute(): string
+    {
+        $jurusan = $this->jurusan?->singkatan ?? $this->jurusan?->nama_jurusan ?? '';
+        return $jurusan ? "{$this->nama_kelas} ({$jurusan})" : $this->nama_kelas;
+    }
+
+    /**
+     * Get tingkat label (for display)
+     */
+    public function getTingkatLabelAttribute(): string
+    {
+        return "Kelas {$this->tingkat}";
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\MataPelajaran;
+use App\Models\Kurikulum;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -12,6 +13,7 @@ use Illuminate\Http\RedirectResponse;
  * Mata Pelajaran Controller (Admin)
  * 
  * CRUD untuk master data mata pelajaran.
+ * Sekarang mata pelajaran terikat ke kurikulum.
  */
 class MataPelajaranController extends Controller
 {
@@ -21,15 +23,25 @@ class MataPelajaranController extends Controller
     public function index(Request $request): View
     {
         $search = $request->input('search');
+        $kurikulumId = $request->input('kurikulum_id');
         
-        $mataPelajaran = MataPelajaran::query()
-            ->search($search)
-            ->orderBy('nama_mapel')
-            ->paginate(20);
+        $query = MataPelajaran::with('kurikulum')
+            ->search($search);
+        
+        if ($kurikulumId) {
+            $query->forKurikulum($kurikulumId);
+        }
+        
+        $mataPelajaran = $query->orderBy('nama_mapel')->get();
+        
+        // Get all kurikulums for filter
+        $kurikulums = Kurikulum::active()->orderBy('nama')->get();
 
         return view('admin.mata-pelajaran.index', [
             'mataPelajaran' => $mataPelajaran,
+            'kurikulums' => $kurikulums,
             'search' => $search,
+            'kurikulumId' => $kurikulumId,
         ]);
     }
 
@@ -38,7 +50,11 @@ class MataPelajaranController extends Controller
      */
     public function create(): View
     {
-        return view('admin.mata-pelajaran.create');
+        $kurikulums = Kurikulum::active()->orderBy('nama')->get();
+        
+        return view('admin.mata-pelajaran.create', [
+            'kurikulums' => $kurikulums,
+        ]);
     }
 
     /**
@@ -47,13 +63,14 @@ class MataPelajaranController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
+            'kurikulum_id' => 'required|exists:kurikulum,id',
             'nama_mapel' => 'required|string|max:100',
-            'kode_mapel' => 'nullable|string|max:20|unique:mata_pelajaran,kode_mapel',
+            'kode_mapel' => 'nullable|string|max:20',
+            'kelompok' => 'nullable|in:A,B,C',
             'deskripsi' => 'nullable|string|max:500',
-            'is_active' => 'boolean',
         ]);
 
-        $validated['is_active'] = $request->boolean('is_active', true);
+        $validated['is_active'] = true;
 
         MataPelajaran::create($validated);
 
@@ -67,10 +84,12 @@ class MataPelajaranController extends Controller
      */
     public function edit(int $id): View
     {
-        $mataPelajaran = MataPelajaran::findOrFail($id);
+        $mataPelajaran = MataPelajaran::with('kurikulum')->findOrFail($id);
+        $kurikulums = Kurikulum::active()->orderBy('nama')->get();
         
         return view('admin.mata-pelajaran.edit', [
             'mataPelajaran' => $mataPelajaran,
+            'kurikulums' => $kurikulums,
         ]);
     }
 
@@ -82,8 +101,10 @@ class MataPelajaranController extends Controller
         $mataPelajaran = MataPelajaran::findOrFail($id);
 
         $validated = $request->validate([
+            'kurikulum_id' => 'required|exists:kurikulum,id',
             'nama_mapel' => 'required|string|max:100',
-            'kode_mapel' => 'nullable|string|max:20|unique:mata_pelajaran,kode_mapel,' . $id,
+            'kode_mapel' => 'nullable|string|max:20',
+            'kelompok' => 'nullable|in:A,B,C',
             'deskripsi' => 'nullable|string|max:500',
             'is_active' => 'boolean',
         ]);
@@ -114,5 +135,18 @@ class MataPelajaranController extends Controller
         return redirect()
             ->route('admin.mata-pelajaran.index')
             ->with('success', 'Mata pelajaran berhasil dihapus.');
+    }
+
+    /**
+     * API: Get mapel for a specific kurikulum (untuk AJAX dropdown)
+     */
+    public function getByKurikulum(int $kurikulumId)
+    {
+        $mapels = MataPelajaran::forKurikulum($kurikulumId)
+            ->active()
+            ->orderBy('nama_mapel')
+            ->get(['id', 'nama_mapel', 'kode_mapel']);
+
+        return response()->json($mapels);
     }
 }

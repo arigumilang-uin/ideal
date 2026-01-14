@@ -131,6 +131,16 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
     Route::get('/dashboard/developer', [\App\Http\Controllers\Dashboard\DeveloperDashboardController::class, 'index'])
         ->name('dashboard.developer');
 
+    // Developer Tools Routes (non-production only)
+    Route::prefix('developer')->name('developer.')->group(function () {
+        Route::post('/switch-role', [\App\Http\Controllers\Utility\DeveloperController::class, 'switchRole'])
+            ->name('switch-role');
+        Route::post('/reset-role', [\App\Http\Controllers\Utility\DeveloperController::class, 'clear'])
+            ->name('reset-role');
+        Route::get('/status', [\App\Http\Controllers\Utility\DeveloperController::class, 'status'])
+            ->name('status');
+    });
+
     // ===================================================================
     // QUICK ACCESS / SHORTCUTS
     // ===================================================================

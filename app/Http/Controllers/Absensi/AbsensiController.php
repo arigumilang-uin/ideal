@@ -33,18 +33,12 @@ class AbsensiController extends Controller
 
     /**
      * Dashboard absensi - tampilkan SEMUA jadwal per hari
+     * (consecutive jadwal with same kelas/mapel are merged by service)
      */
     public function index(): View
     {
         $user = auth()->user();
         $jadwalByHari = $this->jadwalService->getJadwalForGuru($user->id);
-        
-        // Add pertemuan count for each jadwal
-        foreach ($jadwalByHari as $hari => $jadwalList) {
-            foreach ($jadwalList as $jadwal) {
-                $jadwal->totalPertemuan = $jadwal->pertemuan()->count();
-            }
-        }
 
         return view('absensi.index', [
             'jadwalByHari' => $jadwalByHari,
@@ -59,8 +53,70 @@ class AbsensiController extends Controller
      */
     public function grid(int $jadwalId): View
     {
-        $jadwal = JadwalMengajar::with(['mataPelajaran', 'kelas.jurusan', 'guru'])
+        $jadwal = JadwalMengajar::with(['mataPelajaran', 'kelas.jurusan', 'guru', 'templateJam', 'periodeSemester'])
             ->findOrFail($jadwalId);
+        
+        // Get hari from template_jam
+        $hari = $jadwal->templateJam?->hari;
+        $hariValue = $hari instanceof \App\Enums\Hari ? $hari->value : $hari;
+        
+        // Find all consecutive jadwal with same kelas, mapel, guru, hari, periode to calculate merged time
+        $allRelatedJadwal = JadwalMengajar::where('jadwal_mengajar.kelas_id', $jadwal->kelas_id)
+            ->where('jadwal_mengajar.mata_pelajaran_id', $jadwal->mata_pelajaran_id)
+            ->where('jadwal_mengajar.user_id', $jadwal->user_id)
+            ->where('jadwal_mengajar.periode_semester_id', $jadwal->periode_semester_id)
+            ->whereHas('templateJam', function($q) use ($hariValue) {
+                $q->where('hari', $hariValue);
+            })
+            ->active()
+            ->join('template_jam', 'jadwal_mengajar.template_jam_id', '=', 'template_jam.id')
+            ->orderBy('template_jam.urutan')
+            ->select('jadwal_mengajar.*')
+            ->with('templateJam')
+            ->get();
+        
+        // Find the merged time range for consecutive slots
+        $mergedJamMulai = $jadwal->templateJam?->jam_mulai;
+        $mergedJamSelesai = $jadwal->templateJam?->jam_selesai;
+        $mergedJadwalIds = [$jadwal->id];
+        
+        if ($allRelatedJadwal->count() > 1) {
+            // Find consecutive group that includes current jadwal
+            $currentGroup = [];
+            $prevUrutan = null;
+            
+            foreach ($allRelatedJadwal as $j) {
+                $currUrutan = $j->templateJam?->urutan ?? 0;
+                
+                if ($prevUrutan !== null && $currUrutan !== $prevUrutan + 1) {
+                    // Gap found - check if current jadwal is in this group
+                    if (in_array($jadwal->id, array_column($currentGroup, 'id'))) {
+                        break;
+                    }
+                    $currentGroup = [];
+                }
+                
+                $currentGroup[] = [
+                    'id' => $j->id, 
+                    'urutan' => $currUrutan,
+                    'jam_mulai' => $j->templateJam?->jam_mulai, 
+                    'jam_selesai' => $j->templateJam?->jam_selesai
+                ];
+                $prevUrutan = $currUrutan;
+            }
+            
+            // If current jadwal is in the group, use merged times
+            if (in_array($jadwal->id, array_column($currentGroup, 'id')) && count($currentGroup) > 0) {
+                $mergedJamMulai = $currentGroup[0]['jam_mulai'];
+                $mergedJamSelesai = end($currentGroup)['jam_selesai'];
+                $mergedJadwalIds = array_column($currentGroup, 'id');
+            }
+        }
+        
+        // Set merged time on jadwal for display
+        $jadwal->setAttribute('merged_jam_mulai', $mergedJamMulai);
+        $jadwal->setAttribute('merged_jam_selesai', $mergedJamSelesai);
+        $jadwal->setAttribute('merged_jadwal_ids', $mergedJadwalIds);
         
         // Get all pertemuan for this jadwal
         $pertemuanList = Pertemuan::forJadwal($jadwalId)

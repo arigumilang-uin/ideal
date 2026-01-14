@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\Hari;
-use App\Enums\Semester;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,8 +11,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * Model Jadwal Mengajar
  * 
- * Menghubungkan Guru → Mata Pelajaran → Kelas → Hari/Jam
- * Fleksibel: 1 guru bisa mengajar banyak kelas dengan mata pelajaran berbeda
+ * Menghubungkan Guru → Mata Pelajaran → Kelas → Slot Waktu
+ * 
+ * Perubahan dari versi sebelumnya:
+ * - Tidak lagi menyimpan hari/jam langsung, tapi reference ke template_jam
+ * - Terhubung ke periode_semester secara eksplisit
  */
 class JadwalMengajar extends Model
 {
@@ -22,22 +24,15 @@ class JadwalMengajar extends Model
     protected $table = 'jadwal_mengajar';
 
     protected $fillable = [
-        'user_id',
-        'mata_pelajaran_id',
+        'periode_semester_id',
+        'template_jam_id',
         'kelas_id',
-        'hari',
-        'jam_mulai',
-        'jam_selesai',
-        'semester',
-        'tahun_ajaran',
+        'mata_pelajaran_id',
+        'user_id',
         'is_active',
     ];
 
     protected $casts = [
-        'hari' => Hari::class,
-        'semester' => Semester::class,
-        'jam_mulai' => 'datetime:H:i',
-        'jam_selesai' => 'datetime:H:i',
         'is_active' => 'boolean',
     ];
 
@@ -46,11 +41,35 @@ class JadwalMengajar extends Model
     // =====================================================================
 
     /**
+     * Periode semester
+     */
+    public function periodeSemester(): BelongsTo
+    {
+        return $this->belongsTo(PeriodeSemester::class, 'periode_semester_id');
+    }
+
+    /**
+     * Template jam (slot waktu)
+     */
+    public function templateJam(): BelongsTo
+    {
+        return $this->belongsTo(TemplateJam::class, 'template_jam_id');
+    }
+
+    /**
      * Guru yang mengajar
      */
     public function guru(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Alias for guru (backward compatibility)
+     */
+    public function user(): BelongsTo
+    {
+        return $this->guru();
     }
 
     /**
@@ -94,16 +113,15 @@ class JadwalMengajar extends Model
      */
     public function scopeActive($query)
     {
-        return $query->where('is_active', true);
+        return $query->where('jadwal_mengajar.is_active', true);
     }
 
     /**
-     * Scope: Filter by semester and tahun ajaran
+     * Scope: Filter by periode
      */
-    public function scopeForPeriod($query, Semester $semester, string $tahunAjaran)
+    public function scopeForPeriode($query, int $periodeId)
     {
-        return $query->where('semester', $semester)
-                     ->where('tahun_ajaran', $tahunAjaran);
+        return $query->where('jadwal_mengajar.periode_semester_id', $periodeId);
     }
 
     /**
@@ -111,15 +129,23 @@ class JadwalMengajar extends Model
      */
     public function scopeCurrentPeriod($query)
     {
-        return $query->forPeriod(Semester::current(), Semester::currentTahunAjaran());
+        $currentPeriode = PeriodeSemester::current();
+        if (!$currentPeriode) return $query->whereRaw('1 = 0');
+        
+        return $query->where('jadwal_mengajar.periode_semester_id', $currentPeriode->id);
     }
 
     /**
-     * Scope: Filter by hari
+     * Scope: Filter by hari (via template_jam)
      */
-    public function scopeForHari($query, Hari $hari)
+    public function scopeForHari($query, $hari)
     {
-        return $query->where('hari', $hari);
+        if ($hari instanceof Hari) {
+            $hari = $hari->value;
+        }
+        return $query->whereHas('templateJam', function($q) use ($hari) {
+            $q->where('hari', $hari);
+        });
     }
 
     /**
@@ -138,7 +164,7 @@ class JadwalMengajar extends Model
      */
     public function scopeForGuru($query, int $userId)
     {
-        return $query->where('user_id', $userId);
+        return $query->where('jadwal_mengajar.user_id', $userId);
     }
 
     /**
@@ -146,34 +172,61 @@ class JadwalMengajar extends Model
      */
     public function scopeForKelas($query, int $kelasId)
     {
-        return $query->where('kelas_id', $kelasId);
+        return $query->where('jadwal_mengajar.kelas_id', $kelasId);
     }
 
     /**
-     * Scope: Order by time
+     * Scope: Order by time (via template_jam)
      */
     public function scopeOrderByTime($query)
     {
-        return $query->orderBy('jam_mulai');
+        return $query->join('template_jam', 'jadwal_mengajar.template_jam_id', '=', 'template_jam.id')
+                     ->orderBy('template_jam.urutan')
+                     ->select('jadwal_mengajar.*');
+    }
+
+    /**
+     * Scope: With all related data
+     */
+    public function scopeWithRelations($query)
+    {
+        return $query->with(['templateJam', 'kelas.jurusan', 'mataPelajaran', 'guru']);
     }
 
     // =====================================================================
-    // ----------------------- HELPER METHODS -----------------------
+    // ----------------------- ACCESSORS (Derived from templateJam) -----------------------
     // =====================================================================
+
+    /**
+     * Get hari from template_jam
+     */
+    public function getHariAttribute(): ?Hari
+    {
+        return $this->templateJam?->hari;
+    }
+
+    /**
+     * Get jam_mulai from template_jam
+     */
+    public function getJamMulaiAttribute()
+    {
+        return $this->templateJam?->jam_mulai;
+    }
+
+    /**
+     * Get jam_selesai from template_jam
+     */
+    public function getJamSelesaiAttribute()
+    {
+        return $this->templateJam?->jam_selesai;
+    }
 
     /**
      * Get formatted time range
      */
     public function getWaktuAttribute(): string
     {
-        $mulai = $this->jam_mulai instanceof \DateTime 
-            ? $this->jam_mulai->format('H:i') 
-            : $this->jam_mulai;
-        $selesai = $this->jam_selesai instanceof \DateTime 
-            ? $this->jam_selesai->format('H:i') 
-            : $this->jam_selesai;
-            
-        return "{$mulai} - {$selesai}";
+        return $this->templateJam?->waktu ?? '-';
     }
 
     /**
@@ -185,6 +238,10 @@ class JadwalMengajar extends Model
         $kelas = $this->kelas->nama_kelas ?? 'Unknown';
         return "{$mapel} - {$kelas}";
     }
+
+    // =====================================================================
+    // ----------------------- HELPER METHODS -----------------------
+    // =====================================================================
 
     /**
      * Check if this schedule is for today
@@ -210,5 +267,21 @@ class JadwalMengajar extends Model
     public function jumlahSiswa(): int
     {
         return $this->kelas->siswa()->count();
+    }
+
+    /**
+     * Get semester from periode
+     */
+    public function getSemesterAttribute()
+    {
+        return $this->periodeSemester?->semester;
+    }
+
+    /**
+     * Get tahun ajaran from periode
+     */
+    public function getTahunAjaranAttribute(): ?string
+    {
+        return $this->periodeSemester?->tahun_ajaran;
     }
 }

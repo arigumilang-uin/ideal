@@ -7,19 +7,15 @@ use Illuminate\Database\Seeder;
 /**
  * Database Seeder
  * 
- * Main seeder untuk SMK Negeri 1 Sistem Kedisiplinan
+ * Main seeder untuk SMK Negeri 1 Sistem Kedisiplinan & Absensi
  * 
  * URUTAN PENTING:
  * 1. RoleSeeder - Roles harus ada dulu
- * 2. JurusanSeeder - Jurusan untuk referensi kelas & kaprodi
- * 3. KelasSeeder - Kelas untuk referensi wali kelas
- * 4. UserSeeder - Users dengan assignment ke jurusan/kelas
- * 
- * NANTI DITAMBAHKAN:
- * 5. KategoriPelanggaranSeeder
- * 6. JenisPelanggaranSeeder
- * 7. FrequencyRulesSeeder
- * 8. PembinaanInternalSeeder
+ * 2. JurusanSeeder - Jurusan untuk referensi konsentrasi & kaprodi
+ * 3. KonsentrasiSeeder - Konsentrasi untuk referensi kelas XI/XII
+ * 4. KelasSeeder - Kelas untuk referensi wali kelas
+ * 5. UserSeeder - Users dengan assignment ke jurusan/kelas
+ * 6. KurikulumSeeder - Master kurikulum
  */
 class DatabaseSeeder extends Seeder
 {
@@ -29,21 +25,15 @@ class DatabaseSeeder extends Seeder
         $this->command->info('🌱 SEEDING DATABASE SMK NEGERI 1...');
         $this->command->info('================================');
         
-        // Core data
+        // Core data - urutan penting!
         $this->call([
             RoleSeeder::class,
             JurusanSeeder::class,
+            KonsentrasiSeeder::class,  // NEW: Sebelum KelasSeeder
             KelasSeeder::class,
             UserSeeder::class,
+            KurikulumSeeder::class,
         ]);
-        
-        // Pelanggaran & Rules (akan ditambahkan nanti)
-        // $this->call([
-        //     KategoriPelanggaranSeeder::class,
-        //     JenisPelanggaranSeeder::class,
-        //     FrequencyRulesSeeder::class,
-        //     PembinaanInternalSeeder::class,
-        // ]);
         
         $this->command->info('');
         $this->command->info('✅ DATABASE SEEDING COMPLETE!');

@@ -96,15 +96,67 @@ if (!function_exists('school_name')) {
     }
 }
 
+if (!function_exists('current_periode')) {
+    /**
+     * Get current active PeriodeSemester from database
+     * 
+     * @return \App\Models\PeriodeSemester|null
+     */
+    function current_periode(): ?\App\Models\PeriodeSemester
+    {
+        static $periode = null;
+        static $loaded = false;
+        
+        if (!$loaded) {
+            $loaded = true;
+            $periode = \App\Models\PeriodeSemester::current();
+        }
+        
+        return $periode;
+    }
+}
+
 if (!function_exists('school_year')) {
     /**
-     * Get current academic year
+     * Get current academic year from active PeriodeSemester
+     * Falls back to config if no active period
      * 
-     * @return string
+     * @return string|null
      */
-    function school_year(): string
+    function school_year(): ?string
     {
+        $periode = current_periode();
+        
+        if ($periode) {
+            return $periode->tahun_ajaran;
+        }
+        
+        // Fallback to config
         return config('school.tahun_ajaran');
+    }
+}
+
+if (!function_exists('current_semester')) {
+    /**
+     * Get current semester from active PeriodeSemester
+     * 
+     * @return \App\Enums\Semester|null
+     */
+    function current_semester(): ?\App\Enums\Semester
+    {
+        return current_periode()?->semester;
+    }
+}
+
+if (!function_exists('current_semester_name')) {
+    /**
+     * Get current semester name as string
+     * 
+     * @return string|null
+     */
+    function current_semester_name(): ?string
+    {
+        return current_semester()?->value;
     }
 }
 

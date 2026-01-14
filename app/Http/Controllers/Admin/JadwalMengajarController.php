@@ -3,40 +3,54 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Services\Absensi\JadwalService;
 use App\Models\JadwalMengajar;
+use App\Models\PeriodeSemester;
+use App\Models\TemplateJam;
+use App\Models\Kelas;
+use App\Models\MataPelajaran;
+use App\Models\User;
+use App\Models\TingkatKurikulum;
 use App\Enums\Hari;
-use App\Enums\Semester;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
-
-use App\Services\Absensi\PertemuanService;
+use Illuminate\Http\JsonResponse;
 
 /**
  * Jadwal Mengajar Controller (Admin)
  * 
  * CRUD untuk master data jadwal mengajar.
+ * Refactored: sekarang menggunakan template_jam_id dan periode_semester_id
  */
 class JadwalMengajarController extends Controller
 {
-    public function __construct(
-        private JadwalService $jadwalService,
-        private PertemuanService $pertemuanService
-    ) {}
-
     /**
      * Display list of jadwal
      */
     public function index(Request $request): View
     {
         $kelasId = $request->input('kelas_id');
-        $guruId = $request->input('guru_id');
+        $guruId = $request->input('user_id');
         $hari = $request->input('hari');
+        $periodeId = $request->input('periode_id');
 
-        $query = JadwalMengajar::with(['guru', 'mataPelajaran', 'kelas.jurusan'])
-            ->currentPeriod()
-            ->active();
+        // Get all periods for selector
+        $allPeriodes = PeriodeSemester::orderByDesc('is_active')
+            ->orderByDesc('tanggal_mulai')
+            ->get();
+
+        // Determine selected periode
+        $selectedPeriode = $periodeId 
+            ? PeriodeSemester::find($periodeId) 
+            : PeriodeSemester::current();
+
+        // Build query
+        $query = JadwalMengajar::with(['templateJam', 'guru', 'mataPelajaran', 'kelas.jurusan']);
+
+        // Filter by selected periode
+        if ($selectedPeriode) {
+            $query->where('jadwal_mengajar.periode_semester_id', $selectedPeriode->id);
+        }
 
         if ($kelasId) {
             $query->forKelas($kelasId);
@@ -47,141 +61,181 @@ class JadwalMengajarController extends Controller
         }
 
         if ($hari) {
-            $query->where('hari', $hari);
+            $query->forHari($hari);
         }
 
-        $jadwal = $query->orderBy('hari')
-            ->orderBy('jam_mulai')
+        // Order by hari and urutan (via template_jam)
+        $jadwals = $query->join('template_jam', 'jadwal_mengajar.template_jam_id', '=', 'template_jam.id')
+            ->orderBy('template_jam.hari')
+            ->orderBy('template_jam.urutan')
+            ->select('jadwal_mengajar.*')
             ->paginate(30);
 
-        $dropdownData = $this->jadwalService->getDropdownData();
+        // Get dropdown data
+        $kelasList = Kelas::with('jurusan')->orderBy('nama_kelas')->get();
+        $guruList = User::whereHas('role', function($q) {
+            $q->whereIn('nama_role', ['Guru', 'Wali Kelas', 'Kaprodi']);
+        })->orderBy('username')->get();
+        $hariList = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
         return view('admin.jadwal-mengajar.index', [
-            'jadwal' => $jadwal,
-            'filters' => [
-                'kelas_id' => $kelasId,
-                'guru_id' => $guruId,
-                'hari' => $hari,
-            ],
-            ...$dropdownData,
+            'jadwals' => $jadwals,
+            'allPeriodes' => $allPeriodes,
+            'selectedPeriode' => $selectedPeriode,
+            'kelasId' => $kelasId,
+            'guruId' => $guruId,
+            'hari' => $hari,
+            'kelas' => $kelasList,
+            'guru' => $guruList,
+            'hariList' => $hariList,
         ]);
     }
 
     /**
-     * Show create form
+     * Matrix view for bulk jadwal input per kelas
      */
-    public function create(): View
+    public function matrix(Request $request): View
     {
-        $dropdownData = $this->jadwalService->getDropdownData();
+        $kelasId = $request->input('kelas_id');
+        $periodeId = $request->input('periode_id');
+        $selectedHari = $request->input('hari', 'Senin');
 
-        return view('admin.jadwal-mengajar.create', $dropdownData);
+        // Get all periods
+        $allPeriodes = PeriodeSemester::orderByDesc('is_active')
+            ->orderByDesc('tanggal_mulai')
+            ->get();
+
+        // Determine selected periode
+        $selectedPeriode = $periodeId 
+            ? PeriodeSemester::find($periodeId) 
+            : PeriodeSemester::current();
+
+        // Get all kelas
+        $kelasList = Kelas::with('jurusan')->orderBy('nama_kelas')->get();
+        $selectedKelas = $kelasId ? Kelas::find($kelasId) : null;
+
+        // Get template jam for selected periode and hari
+        $templateJams = collect();
+        if ($selectedPeriode) {
+            $templateJams = TemplateJam::forPeriode($selectedPeriode->id)
+                ->forHari($selectedHari)
+                ->active()
+                ->ordered()
+                ->get();
+        }
+
+        // Get mapel for selected kelas (filtered by kurikulum)
+        $mapelList = collect();
+        $selectedKurikulum = null;
+        if ($selectedKelas && $selectedPeriode) {
+            $selectedKurikulum = $selectedKelas->getKurikulumFor($selectedPeriode->id);
+            if ($selectedKurikulum) {
+                $mapelList = MataPelajaran::forKurikulum($selectedKurikulum->id)
+                    ->active()
+                    ->orderBy('nama_mapel')
+                    ->get();
+            }
+        }
+
+        // Get guru list
+        $guruList = User::whereHas('role', function($q) {
+            $q->whereIn('nama_role', ['Guru', 'Wali Kelas', 'Kaprodi']);
+        })->orderBy('username')->get();
+
+        $hariList = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+        // Get existing jadwal for selected kelas, periode, and hari
+        $existingJadwal = [];
+        if ($selectedKelas && $selectedPeriode) {
+            $jadwalList = JadwalMengajar::with(['templateJam', 'mataPelajaran', 'guru'])
+                ->forPeriode($selectedPeriode->id)
+                ->forKelas($selectedKelas->id)
+                ->forHari($selectedHari)
+                ->get();
+
+            foreach ($jadwalList as $j) {
+                $existingJadwal[$j->template_jam_id] = $j;
+            }
+        }
+
+        return view('admin.jadwal-mengajar.matrix', [
+            'allPeriodes' => $allPeriodes,
+            'selectedPeriode' => $selectedPeriode,
+            'kelasList' => $kelasList,
+            'selectedKelas' => $selectedKelas,
+            'selectedKurikulum' => $selectedKurikulum,
+            'templateJams' => $templateJams,
+            'selectedHari' => $selectedHari,
+            'hariList' => $hariList,
+            'mapelList' => $mapelList,
+            'guruList' => $guruList,
+            'existingJadwal' => $existingJadwal,
+        ]);
     }
 
     /**
-     * Store new jadwal
+     * Update or create jadwal cell via AJAX
      */
-    public function store(Request $request): RedirectResponse
+    public function updateCell(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'mata_pelajaran_id' => 'required|exists:mata_pelajaran,id',
+            'periode_semester_id' => 'required|exists:periode_semester,id',
+            'template_jam_id' => 'required|exists:template_jam,id',
             'kelas_id' => 'required|exists:kelas,id',
-            'hari' => 'required|in:Senin,Selasa,Rabu,Kamis,Jumat,Sabtu',
-            'jam_mulai' => 'required|date_format:H:i',
-            'jam_selesai' => 'required|date_format:H:i|after:jam_mulai',
-            'semester' => 'required|in:Ganjil,Genap',
-            'tahun_ajaran' => 'required|string|max:10',
+            'mata_pelajaran_id' => 'nullable|exists:mata_pelajaran,id',
+            'user_id' => 'nullable|exists:users,id',
         ]);
 
-        // Check for conflict (kelas + guru)
-        $conflicts = $this->jadwalService->checkConflicts(
-            kelasId: $validated['kelas_id'],
-            userId: $validated['user_id'],
-            hari: Hari::from($validated['hari']),
-            jamMulai: $validated['jam_mulai'],
-            jamSelesai: $validated['jam_selesai'],
-            semester: Semester::from($validated['semester']),
-            tahunAjaran: $validated['tahun_ajaran']
-        );
+        // Find existing jadwal for this slot
+        $existingJadwal = JadwalMengajar::where('periode_semester_id', $validated['periode_semester_id'])
+            ->where('template_jam_id', $validated['template_jam_id'])
+            ->where('kelas_id', $validated['kelas_id'])
+            ->first();
 
-        if (!empty($conflicts)) {
-            return back()
-                ->withInput()
-                ->with('error', implode(' ', $conflicts));
+        // If no mapel selected, delete existing
+        if (empty($validated['mata_pelajaran_id']) || empty($validated['user_id'])) {
+            if ($existingJadwal) {
+                // Check if has absensi
+                if ($existingJadwal->absensi()->exists()) {
+                    return response()->json([
+                        'success' => false, 
+                        'message' => 'Tidak dapat menghapus jadwal yang sudah memiliki data absensi.'
+                    ], 400);
+                }
+                $existingJadwal->delete();
+            }
+            return response()->json(['success' => true, 'action' => 'deleted']);
         }
 
-        $jadwal = $this->jadwalService->createJadwal($validated);
+        // Create or update
+        $data = [
+            'periode_semester_id' => $validated['periode_semester_id'],
+            'template_jam_id' => $validated['template_jam_id'],
+            'kelas_id' => $validated['kelas_id'],
+            'mata_pelajaran_id' => $validated['mata_pelajaran_id'],
+            'user_id' => $validated['user_id'],
+            'is_active' => true,
+        ];
 
-        // Auto-generate pertemuan if periode exists
-        $generated = $this->pertemuanService->generatePertemuanForJadwal($jadwal);
-        $message = 'Jadwal mengajar berhasil ditambahkan.';
-        if ($generated > 0) {
-            $message .= " ({$generated} pertemuan ter-generate)";
+        if ($existingJadwal) {
+            $existingJadwal->update($data);
+            $jadwal = $existingJadwal;
+            $action = 'updated';
+        } else {
+            $jadwal = JadwalMengajar::create($data);
+            $action = 'created';
         }
 
-        return redirect()
-            ->route('admin.jadwal-mengajar.index')
-            ->with('success', $message);
-    }
+        // Load relations for response
+        $jadwal->load(['mataPelajaran', 'guru']);
 
-    /**
-     * Show edit form
-     */
-    public function edit(int $id): View
-    {
-        $jadwal = JadwalMengajar::findOrFail($id);
-        $dropdownData = $this->jadwalService->getDropdownData();
-
-        return view('admin.jadwal-mengajar.edit', [
-            'jadwal' => $jadwal,
-            ...$dropdownData,
+        return response()->json([
+            'success' => true,
+            'action' => $action,
+            'jadwal_id' => $jadwal->id,
+            'mapel_nama' => $jadwal->mataPelajaran->nama_mapel ?? '-',
+            'guru_nama' => $jadwal->guru->username ?? '-',
         ]);
-    }
-
-    /**
-     * Update jadwal
-     */
-    public function update(Request $request, int $id): RedirectResponse
-    {
-        $jadwal = JadwalMengajar::findOrFail($id);
-
-        $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'mata_pelajaran_id' => 'required|exists:mata_pelajaran,id',
-            'kelas_id' => 'required|exists:kelas,id',
-            'hari' => 'required|in:Senin,Selasa,Rabu,Kamis,Jumat,Sabtu',
-            'jam_mulai' => 'required|date_format:H:i',
-            'jam_selesai' => 'required|date_format:H:i|after:jam_mulai',
-            'semester' => 'required|in:Ganjil,Genap',
-            'tahun_ajaran' => 'required|string|max:10',
-            'is_active' => 'boolean',
-        ]);
-
-        $validated['is_active'] = $request->boolean('is_active', true);
-
-        // Check for conflict (exclude current jadwal)
-        $conflicts = $this->jadwalService->checkConflicts(
-            kelasId: $validated['kelas_id'],
-            userId: $validated['user_id'],
-            hari: Hari::from($validated['hari']),
-            jamMulai: $validated['jam_mulai'],
-            jamSelesai: $validated['jam_selesai'],
-            semester: Semester::from($validated['semester']),
-            tahunAjaran: $validated['tahun_ajaran'],
-            excludeJadwalId: $id
-        );
-
-        if (!empty($conflicts)) {
-            return back()
-                ->withInput()
-                ->with('error', implode(' ', $conflicts));
-        }
-
-        $this->jadwalService->updateJadwal($id, $validated);
-
-        return redirect()
-            ->route('admin.jadwal-mengajar.index')
-            ->with('success', 'Jadwal mengajar berhasil diperbarui.');
     }
 
     /**
@@ -196,10 +250,62 @@ class JadwalMengajarController extends Controller
             return back()->with('error', 'Jadwal tidak dapat dihapus karena sudah ada data absensi.');
         }
 
-        $this->jadwalService->deleteJadwal($id);
+        $jadwal->delete();
 
         return redirect()
             ->route('admin.jadwal-mengajar.index')
             ->with('success', 'Jadwal mengajar berhasil dihapus.');
+    }
+
+    /**
+     * API: Get mapel for a kelas (by kurikulum)
+     */
+    public function getMapelForKelas(Request $request): JsonResponse
+    {
+        $kelasId = $request->input('kelas_id');
+        $periodeId = $request->input('periode_id');
+
+        if (!$kelasId || !$periodeId) {
+            return response()->json([]);
+        }
+
+        $kelas = Kelas::find($kelasId);
+        if (!$kelas) {
+            return response()->json([]);
+        }
+
+        $kurikulumId = $kelas->getKurikulumIdFor($periodeId);
+        if (!$kurikulumId) {
+            return response()->json(['error' => 'Kurikulum belum dikonfigurasi untuk tingkat ' . $kelas->tingkat], 400);
+        }
+
+        $mapels = MataPelajaran::forKurikulum($kurikulumId)
+            ->active()
+            ->orderBy('nama_mapel')
+            ->get(['id', 'nama_mapel', 'kode_mapel']);
+
+        return response()->json($mapels);
+    }
+
+    /**
+     * API: Get template jam for periode and hari
+     */
+    public function getTemplateJam(Request $request): JsonResponse
+    {
+        $periodeId = $request->input('periode_id');
+        $hari = $request->input('hari');
+
+        if (!$periodeId || !$hari) {
+            return response()->json([]);
+        }
+
+        $slots = TemplateJam::forPeriode($periodeId)
+            ->forHari($hari)
+            ->pelajaranOnly()
+            ->active()
+            ->ordered()
+            ->get(['id', 'label', 'jam_mulai', 'jam_selesai', 'tipe']);
+
+        return response()->json($slots);
     }
 }

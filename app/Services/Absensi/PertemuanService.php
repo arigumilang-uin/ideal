@@ -16,27 +16,25 @@ use Carbon\Carbon;
  * 
  * Generate dan manage pertemuan (meeting instances) berdasarkan jadwal template
  * dan periode semester.
+ * 
+ * UPDATED: Sekarang menggunakan periode_semester_id di jadwal_mengajar
  */
 class PertemuanService
 {
     /**
-     * Generate pertemuan untuk satu jadwal berdasarkan periode semester aktif
+     * Generate pertemuan untuk satu jadwal berdasarkan periode yang terkait
      * 
      * @param JadwalMengajar $jadwal
      * @return int Jumlah pertemuan yang di-generate
      */
     public function generatePertemuanForJadwal(JadwalMengajar $jadwal): int
     {
-        // Get active period matching jadwal's semester
-        $periode = PeriodeSemester::where('semester', $jadwal->semester)
-            ->where('tahun_ajaran', $jadwal->tahun_ajaran)
-            ->first();
+        // Load periode from jadwal
+        $periode = $jadwal->periodeSemester;
 
         if (!$periode) {
             Log::warning("No periode found for jadwal", [
                 'jadwal_id' => $jadwal->id,
-                'semester' => $jadwal->semester->value,
-                'tahun_ajaran' => $jadwal->tahun_ajaran,
             ]);
             return 0;
         }
@@ -49,8 +47,18 @@ class PertemuanService
      */
     public function generatePertemuanFromPeriode(JadwalMengajar $jadwal, PeriodeSemester $periode): int
     {
+        // Load template jam to get hari
+        $templateJam = $jadwal->templateJam;
+        if (!$templateJam) {
+            Log::warning("No template_jam found for jadwal", [
+                'jadwal_id' => $jadwal->id,
+            ]);
+            return 0;
+        }
+
         // Get day number from Hari enum
-        $dayOfWeek = $jadwal->hari->dayNumber();
+        $hari = $templateJam->hari;
+        $dayOfWeek = is_string($hari) ? Hari::from($hari)->dayNumber() : $hari->dayNumber();
         
         // Get all dates for that day within the period
         $dates = $periode->getDatesForDay($dayOfWeek);
@@ -89,8 +97,8 @@ class PertemuanService
      */
     public function generateAllPertemuanForPeriode(PeriodeSemester $periode): int
     {
-        $jadwalList = JadwalMengajar::where('semester', $periode->semester)
-            ->where('tahun_ajaran', $periode->tahun_ajaran)
+        // Use new schema: periode_semester_id
+        $jadwalList = JadwalMengajar::forPeriode($periode->id)
             ->active()
             ->get();
 
@@ -110,7 +118,7 @@ class PertemuanService
     {
         $today = today();
         
-        return Pertemuan::with(['jadwalMengajar.mataPelajaran', 'jadwalMengajar.kelas.jurusan'])
+        return Pertemuan::with(['jadwalMengajar.mataPelajaran', 'jadwalMengajar.kelas.jurusan', 'jadwalMengajar.templateJam'])
             ->whereHas('jadwalMengajar', function($q) use ($userId) {
                 $q->where('user_id', $userId)
                   ->where('is_active', true);
@@ -119,7 +127,7 @@ class PertemuanService
             ->aktif()
             ->get()
             ->sortBy(function($pertemuan) {
-                return $pertemuan->jadwalMengajar->jam_mulai;
+                return $pertemuan->jadwalMengajar->templateJam?->jam_mulai ?? '00:00';
             });
     }
 
@@ -130,8 +138,15 @@ class PertemuanService
     {
         $today = today();
         
-        // Check if jadwal is for today
-        if ($jadwal->hari !== Hari::today()) {
+        // Check if jadwal is for today (via template_jam)
+        $templateJam = $jadwal->templateJam;
+        if (!$templateJam) {
+            return null;
+        }
+
+        $jadwalHari = is_string($templateJam->hari) ? Hari::from($templateJam->hari) : $templateJam->hari;
+        
+        if ($jadwalHari !== Hari::today()) {
             return null;
         }
 

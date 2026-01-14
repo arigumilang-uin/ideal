@@ -37,12 +37,30 @@ class ari extends Seeder
         $createdCount++;
 
         $guruData = [
-            'KJA',
-            'WKJA',
-            'KJB',
-            'WKJB',
-            'kepala sekolah',
-            'waka',
+            'Devi, S.Pd',
+            'Agus, S.Pd',
+            'Budi, S.Pd',
+            'Cindy, S.Pd',
+            'Dewi, S.Pd',
+            'Eka, S.Pd',
+            'Fajar, S.Pd',
+            'Jono, S.Pd., M.Pd',
+            'Kurniawan, S.Pd., M.Pd',
+            'Lina, S.Pd., M.Pd',
+            'Maman, S.Pd., M.Pd',
+            'Nina, S.Pd., M.Pd',
+            'Oke, S.Pd., M.Pd',
+            'Pandu, S.Pd., M.Pd',
+            'Qura, S.Pd., M.Pd',
+            'Rudi, S.Pd., M.Pd',
+            'Siti, S.Pd., M.Pd',
+            'Tono, S.Pd., M.Pd',
+            'Udin, S.Pd., M.Pd',
+            'Vika, S.Pd., M.Pd',
+            'Wati, S.Pd., M.Pd',
+            'Xander, S.Pd., M.Pd',
+            'Yuni, S.Pd., M.Pd',
+            'Zaki, S.Pd., M.Pd',
         ];
 
         $guruCounter = 1;

@@ -5,13 +5,16 @@ use App\Http\Controllers\Absensi\AbsensiController;
 use App\Http\Controllers\Admin\MataPelajaranController;
 use App\Http\Controllers\Admin\JadwalMengajarController;
 use App\Http\Controllers\Admin\PeriodeSemesterController;
+use App\Http\Controllers\Admin\KurikulumController;
+use App\Http\Controllers\Admin\TemplateJamController;
 
 /*
 |--------------------------------------------------------------------------
 | Absensi Routes
 |--------------------------------------------------------------------------
 |
-| Routes for attendance (absensi), mata pelajaran, and jadwal mengajar.
+| Routes for attendance (absensi), kurikulum, mata pelajaran, 
+| template jam, and jadwal mengajar.
 |
 */
 
@@ -48,11 +51,21 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
     });
 
     // ===================================================================
-    // ADMIN ROUTES - MATA PELAJARAN & JADWAL MENGAJAR & PERIODE SEMESTER
+    // ADMIN ROUTES - AKADEMIK
     // ===================================================================
     
     Route::prefix('admin')->name('admin.')->middleware('role:Operator Sekolah,Developer')->group(function () {
         
+        // --- Kurikulum ---
+        Route::prefix('kurikulum')->name('kurikulum.')->group(function () {
+            Route::get('/', [KurikulumController::class, 'index'])->name('index');
+            Route::get('/create', [KurikulumController::class, 'create'])->name('create');
+            Route::post('/', [KurikulumController::class, 'store'])->name('store');
+            Route::get('/{id}/edit', [KurikulumController::class, 'edit'])->name('edit');
+            Route::put('/{id}', [KurikulumController::class, 'update'])->name('update');
+            Route::delete('/{id}', [KurikulumController::class, 'destroy'])->name('destroy');
+        });
+
         // --- Periode Semester ---
         Route::prefix('periode-semester')->name('periode-semester.')->group(function () {
             Route::get('/', [PeriodeSemesterController::class, 'index'])->name('index');
@@ -63,6 +76,9 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
             Route::delete('/{id}', [PeriodeSemesterController::class, 'destroy'])->name('destroy');
             Route::post('/{id}/set-active', [PeriodeSemesterController::class, 'setActive'])->name('setActive');
             Route::post('/{id}/generate-pertemuan', [PeriodeSemesterController::class, 'generatePertemuan'])->name('generatePertemuan');
+            // Tingkat Kurikulum configuration
+            Route::get('/{id}/tingkat-kurikulum', [PeriodeSemesterController::class, 'tingkatKurikulum'])->name('tingkatKurikulum');
+            Route::post('/{id}/tingkat-kurikulum', [PeriodeSemesterController::class, 'saveTingkatKurikulum'])->name('saveTingkatKurikulum');
         });
 
         // --- Mata Pelajaran ---
@@ -73,16 +89,29 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
             Route::get('/{id}/edit', [MataPelajaranController::class, 'edit'])->name('edit');
             Route::put('/{id}', [MataPelajaranController::class, 'update'])->name('update');
             Route::delete('/{id}', [MataPelajaranController::class, 'destroy'])->name('destroy');
+            // API: Get mapel by kurikulum
+            Route::get('/by-kurikulum/{kurikulumId}', [MataPelajaranController::class, 'getByKurikulum'])->name('byKurikulum');
+        });
+
+        // --- Template Jam (replaces Jam Pelajaran) ---
+        Route::prefix('template-jam')->name('template-jam.')->group(function () {
+            Route::get('/', [TemplateJamController::class, 'index'])->name('index');
+            Route::post('/', [TemplateJamController::class, 'store'])->name('store');
+            Route::put('/{id}', [TemplateJamController::class, 'update'])->name('update');
+            Route::delete('/{id}', [TemplateJamController::class, 'destroy'])->name('destroy');
+            Route::patch('/{id}/reorder', [TemplateJamController::class, 'reorder'])->name('reorder');
+            Route::post('/copy', [TemplateJamController::class, 'copy'])->name('copy');
         });
 
         // --- Jadwal Mengajar ---
         Route::prefix('jadwal-mengajar')->name('jadwal-mengajar.')->group(function () {
             Route::get('/', [JadwalMengajarController::class, 'index'])->name('index');
-            Route::get('/create', [JadwalMengajarController::class, 'create'])->name('create');
-            Route::post('/', [JadwalMengajarController::class, 'store'])->name('store');
-            Route::get('/{id}/edit', [JadwalMengajarController::class, 'edit'])->name('edit');
-            Route::put('/{id}', [JadwalMengajarController::class, 'update'])->name('update');
+            Route::get('/matrix', [JadwalMengajarController::class, 'matrix'])->name('matrix');
+            Route::post('/update-cell', [JadwalMengajarController::class, 'updateCell'])->name('updateCell');
             Route::delete('/{id}', [JadwalMengajarController::class, 'destroy'])->name('destroy');
+            // API endpoints
+            Route::get('/api/mapel-for-kelas', [JadwalMengajarController::class, 'getMapelForKelas'])->name('api.mapelForKelas');
+            Route::get('/api/template-jam', [JadwalMengajarController::class, 'getTemplateJam'])->name('api.templateJam');
         });
     });
 });

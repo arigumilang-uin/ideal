@@ -1,49 +1,120 @@
 @extends('layouts.app')
 
+@section('title', 'Edit Mata Pelajaran')
+
 @section('content')
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-    tailwind.config = {
-        theme: { extend: { colors: { primary: '#0f172a' } } },
-        corePlugins: { preflight: false }
-    }
-</script>
+<div class="space-y-6">
+    {{-- Page Header --}}
+    <x-page-header 
+        title="Edit Mata Pelajaran" 
+        subtitle="Perbarui data mata pelajaran: {{ $mataPelajaran->nama_mapel }}"
+    />
 
-<div class="min-h-screen p-6 bg-slate-50">
-    <div class="max-w-2xl mx-auto">
-        <div class="mb-6">
-            <a href="{{ route('admin.mata-pelajaran.index') }}" class="text-sm text-slate-500 hover:text-slate-700 no-underline">
-                <i class="fas fa-arrow-left mr-1"></i> Kembali
-            </a>
-        </div>
+    {{-- Form Card --}}
+    <div class="card">
+        <div class="card-body">
+            <form action="{{ route('admin.mata-pelajaran.update', $mataPelajaran->id) }}" method="POST" class="space-y-6">
+                @csrf
+                @method('PUT')
 
-        <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-200 bg-amber-50">
-                <h2 class="text-lg font-bold text-amber-900 m-0">Edit Mata Pelajaran</h2>
-            </div>
-            <form action="{{ route('admin.mata-pelajaran.update', $mataPelajaran->id) }}" method="POST" class="p-6 space-y-4">
-                @csrf @method('PUT')
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Nama Mata Pelajaran *</label>
-                    <input type="text" name="nama_mapel" value="{{ old('nama_mapel', $mataPelajaran->nama_mapel) }}" required class="w-full px-4 py-2 rounded-lg border border-slate-200 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none">
-                    @error('nama_mapel')<p class="text-rose-500 text-xs mt-1">{{ $message }}</p>@enderror
+                {{-- Kurikulum --}}
+                <div class="form-group">
+                    <label for="kurikulum_id" class="form-label">Kurikulum <span class="text-red-500">*</span></label>
+                    <select name="kurikulum_id" 
+                            id="kurikulum_id" 
+                            class="form-input @error('kurikulum_id') border-red-500 @enderror" 
+                            required>
+                        <option value="">Pilih Kurikulum</option>
+                        @foreach($kurikulums as $kur)
+                            <option value="{{ $kur->id }}" {{ old('kurikulum_id', $mataPelajaran->kurikulum_id) == $kur->id ? 'selected' : '' }}>
+                                {{ $kur->kode }} - {{ $kur->nama }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('kurikulum_id')
+                        <p class="text-sm text-red-500 mt-1">{{ $message }}</p>
+                    @enderror
                 </div>
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Kode Mapel</label>
-                    <input type="text" name="kode_mapel" value="{{ old('kode_mapel', $mataPelajaran->kode_mapel) }}" maxlength="20" class="w-full px-4 py-2 rounded-lg border border-slate-200 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none">
-                    @error('kode_mapel')<p class="text-rose-500 text-xs mt-1">{{ $message }}</p>@enderror
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {{-- Nama --}}
+                    <div class="form-group">
+                        <label for="nama_mapel" class="form-label">Nama Mata Pelajaran <span class="text-red-500">*</span></label>
+                        <input type="text" 
+                               name="nama_mapel" 
+                               id="nama_mapel" 
+                               value="{{ old('nama_mapel', $mataPelajaran->nama_mapel) }}"
+                               class="form-input @error('nama_mapel') border-red-500 @enderror" 
+                               placeholder="Contoh: Matematika"
+                               required>
+                        @error('nama_mapel')
+                            <p class="text-sm text-red-500 mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    {{-- Kode --}}
+                    <div class="form-group">
+                        <label for="kode_mapel" class="form-label">Kode Mapel</label>
+                        <input type="text" 
+                               name="kode_mapel" 
+                               id="kode_mapel" 
+                               value="{{ old('kode_mapel', $mataPelajaran->kode_mapel) }}"
+                               class="form-input @error('kode_mapel') border-red-500 @enderror" 
+                               placeholder="Contoh: MTK">
+                        @error('kode_mapel')
+                            <p class="text-sm text-red-500 mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Deskripsi</label>
-                    <textarea name="deskripsi" rows="3" class="w-full px-4 py-2 rounded-lg border border-slate-200 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none resize-none">{{ old('deskripsi', $mataPelajaran->deskripsi) }}</textarea>
+
+                {{-- Kelompok --}}
+                <div class="form-group">
+                    <label for="kelompok" class="form-label">Kelompok Mapel</label>
+                    <select name="kelompok" id="kelompok" class="form-input @error('kelompok') border-red-500 @enderror">
+                        <option value="">Tidak Ditentukan</option>
+                        <option value="A" {{ old('kelompok', $mataPelajaran->kelompok) == 'A' ? 'selected' : '' }}>A - Umum</option>
+                        <option value="B" {{ old('kelompok', $mataPelajaran->kelompok) == 'B' ? 'selected' : '' }}>B - Kejuruan</option>
+                        <option value="C" {{ old('kelompok', $mataPelajaran->kelompok) == 'C' ? 'selected' : '' }}>C - Pilihan/Muatan Lokal</option>
+                    </select>
+                    @error('kelompok')
+                        <p class="text-sm text-red-500 mt-1">{{ $message }}</p>
+                    @enderror
                 </div>
-                <div class="flex items-center gap-2">
-                    <input type="checkbox" name="is_active" value="1" {{ $mataPelajaran->is_active ? 'checked' : '' }} id="isActive" class="rounded border-slate-300">
-                    <label for="isActive" class="text-sm text-slate-700">Aktif</label>
+
+                {{-- Deskripsi --}}
+                <div class="form-group">
+                    <label for="deskripsi" class="form-label">Deskripsi</label>
+                    <textarea name="deskripsi" 
+                              id="deskripsi" 
+                              rows="3"
+                              class="form-input @error('deskripsi') border-red-500 @enderror" 
+                              placeholder="Deskripsi singkat tentang mata pelajaran ini (opsional)">{{ old('deskripsi', $mataPelajaran->deskripsi) }}</textarea>
+                    @error('deskripsi')
+                        <p class="text-sm text-red-500 mt-1">{{ $message }}</p>
+                    @enderror
                 </div>
-                <div class="pt-4 border-t border-slate-200">
-                    <button type="submit" class="px-6 py-2 rounded-lg bg-amber-600 text-white font-bold text-sm hover:bg-amber-700 border-0 cursor-pointer">
-                        <i class="fas fa-save mr-1"></i> Update
+
+                {{-- Status --}}
+                <div class="form-group">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" 
+                               name="is_active" 
+                               value="1"
+                               {{ old('is_active', $mataPelajaran->is_active) ? 'checked' : '' }}
+                               class="form-checkbox">
+                        <span class="text-sm text-slate-700">Mata Pelajaran Aktif</span>
+                    </label>
+                </div>
+
+                {{-- Actions --}}
+                <div class="flex items-center justify-end gap-3 pt-4 border-t">
+                    <a href="{{ route('admin.mata-pelajaran.index') }}" class="btn btn-secondary">
+                        <x-ui.icon name="x" size="16" />
+                        <span>Batal</span>
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <x-ui.icon name="save" size="16" />
+                        <span>Simpan Perubahan</span>
                     </button>
                 </div>
             </form>

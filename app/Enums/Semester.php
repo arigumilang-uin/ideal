@@ -46,27 +46,36 @@ enum Semester: string
     }
 
     /**
-     * Get current semester based on month
-     * Ganjil: Juli - Desember
-     * Genap: Januari - Juni
+     * Get current semester from active PeriodeSemester
+     * Falls back to date-based calculation if no active period
      */
     public static function current(): self
     {
+        $periode = current_periode();
+        if ($periode) {
+            return $periode->semester;
+        }
+        
+        // Fallback: calculate from current month
         $month = (int) date('n');
         return ($month >= 7) ? self::Ganjil : self::Genap;
     }
 
     /**
-     * Get current academic year
-     * Format: 2025/2026
+     * Get current academic year from active PeriodeSemester
+     * Falls back to date-based calculation if no active period
      */
     public static function currentTahunAjaran(): string
     {
+        $periode = current_periode();
+        if ($periode) {
+            return $periode->tahun_ajaran;
+        }
+        
+        // Fallback: calculate from current date
         $year = (int) date('Y');
         $month = (int) date('n');
         
-        // Jika semester ganjil (Juli-Des), tahun ajaran adalah tahun_ini/tahun_depan
-        // Jika semester genap (Jan-Jun), tahun ajaran adalah tahun_lalu/tahun_ini
         if ($month >= 7) {
             return $year . '/' . ($year + 1);
         } else {

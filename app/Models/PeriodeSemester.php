@@ -12,6 +12,7 @@ use Carbon\Carbon;
  * Model Periode Semester
  * 
  * Konfigurasi tanggal awal/akhir semester yang diinput oleh operator.
+ * Sekarang juga container untuk tingkat_kurikulum dan template_jam.
  */
 class PeriodeSemester extends Model
 {
@@ -36,6 +37,34 @@ class PeriodeSemester extends Model
     ];
 
     // =====================================================================
+    // ----------------------- RELATIONSHIPS -----------------------
+    // =====================================================================
+
+    /**
+     * Assignment kurikulum per tingkat untuk periode ini
+     */
+    public function tingkatKurikulum(): HasMany
+    {
+        return $this->hasMany(TingkatKurikulum::class, 'periode_semester_id');
+    }
+
+    /**
+     * Template jam pelajaran untuk periode ini
+     */
+    public function templateJam(): HasMany
+    {
+        return $this->hasMany(TemplateJam::class, 'periode_semester_id');
+    }
+
+    /**
+     * Jadwal mengajar untuk periode ini
+     */
+    public function jadwalMengajar(): HasMany
+    {
+        return $this->hasMany(JadwalMengajar::class, 'periode_semester_id');
+    }
+
+    // =====================================================================
     // ----------------------- QUERY SCOPES -----------------------
     // =====================================================================
 
@@ -56,7 +85,84 @@ class PeriodeSemester extends Model
     }
 
     // =====================================================================
-    // ----------------------- HELPER METHODS -----------------------
+    // ----------------------- KURIKULUM HELPERS -----------------------
+    // =====================================================================
+
+    /**
+     * Get kurikulum for a specific tingkat
+     */
+    public function getKurikulumFor(string $tingkat): ?Kurikulum
+    {
+        return TingkatKurikulum::getKurikulumFor($this->id, $tingkat);
+    }
+
+    /**
+     * Get all tingkat-kurikulum assignments
+     */
+    public function getTingkatKurikulumMap(): array
+    {
+        return $this->tingkatKurikulum()
+            ->with('kurikulum')
+            ->get()
+            ->mapWithKeys(fn($tk) => [$tk->tingkat => $tk->kurikulum])
+            ->toArray();
+    }
+
+    /**
+     * Check if all tingkat have kurikulum assigned
+     */
+    public function hasCompleteKurikulumConfig(): bool
+    {
+        $assigned = $this->tingkatKurikulum()->count();
+        return $assigned >= 3; // X, XI, XII
+    }
+
+    // =====================================================================
+    // ----------------------- TEMPLATE JAM HELPERS -----------------------
+    // =====================================================================
+
+    /**
+     * Get template jam for a specific hari
+     */
+    public function getTemplateJamFor(string $hari): \Illuminate\Database\Eloquent\Collection
+    {
+        return TemplateJam::getSlotsFor($this->id, $hari);
+    }
+
+    /**
+     * Get only pelajaran slots for a specific hari
+     */
+    public function getPelajaranSlotsFor(string $hari): \Illuminate\Database\Eloquent\Collection
+    {
+        return TemplateJam::getPelajaranSlotsFor($this->id, $hari);
+    }
+
+    /**
+     * Get list of days that have template configured
+     */
+    public function getConfiguredDays(): array
+    {
+        return TemplateJam::getConfiguredDays($this->id);
+    }
+
+    /**
+     * Check if template jam has been configured
+     */
+    public function hasTemplateJamConfig(): bool
+    {
+        return $this->templateJam()->active()->exists();
+    }
+
+    /**
+     * Copy template jam from another periode
+     */
+    public function copyTemplateJamFrom(int $fromPeriodeId): int
+    {
+        return TemplateJam::copyFromPeriode($fromPeriodeId, $this->id);
+    }
+
+    // =====================================================================
+    // ----------------------- DATE HELPERS -----------------------
     // =====================================================================
 
     /**
@@ -100,6 +206,10 @@ class PeriodeSemester extends Model
         return $date->between($this->tanggal_mulai, $this->tanggal_selesai);
     }
 
+    // =====================================================================
+    // ----------------------- DISPLAY HELPERS -----------------------
+    // =====================================================================
+
     /**
      * Get display name
      */
@@ -118,5 +228,17 @@ class PeriodeSemester extends Model
         
         // Activate this one
         $this->update(['is_active' => true]);
+    }
+
+    /**
+     * Get configuration status for display
+     */
+    public function getConfigStatusAttribute(): array
+    {
+        return [
+            'kurikulum' => $this->hasCompleteKurikulumConfig(),
+            'template_jam' => $this->hasTemplateJamConfig(),
+            'jadwal' => $this->jadwalMengajar()->exists(),
+        ];
     }
 }

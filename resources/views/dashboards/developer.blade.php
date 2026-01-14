@@ -69,7 +69,7 @@
                     <form action="{{ route('developer.switch-role') }}" method="POST">
                         @csrf
                         <input type="hidden" name="role_id" value="{{ $role->id }}">
-                        <button type="submit" class="w-full btn {{ $currentOverride == $role->id ? 'btn-primary' : 'btn-secondary' }}">
+                        <button type="submit" class="w-full btn {{ $currentOverride == $role->nama_role ? 'btn-primary' : 'btn-secondary' }}">
                             {{ $role->nama_role }}
                         </button>
                     </form>
