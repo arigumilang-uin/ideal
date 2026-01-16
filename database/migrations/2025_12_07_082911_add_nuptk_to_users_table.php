@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('nuptk', 18)->nullable()->after('nip')->comment('NUPTK (Nomor Unik Pendidik dan Tenaga Kependidikan) - 18 digit');
+            $table->string('nuptk', 18)->nullable()->after('ni_pppk')->comment('NUPTK (Nomor Unik Pendidik dan Tenaga Kependidikan) - 18 digit');
         });
     }
 

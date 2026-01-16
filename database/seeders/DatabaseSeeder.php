@@ -34,6 +34,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             KurikulumSeeder::class,
             MapelSeeder::class,  // Mata pelajaran + guru pengampu
+            JadwalMengajarSeeder::class
         ]);
         
         $this->command->info('');
