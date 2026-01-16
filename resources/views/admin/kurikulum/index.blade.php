@@ -15,7 +15,12 @@
 
     {{-- Action Bar --}}
     <div class="flex justify-between items-center">
-        <div></div>
+        <div>
+            <a href="{{ route('admin.kurikulum.trash') }}" class="btn btn-white">
+                <x-ui.icon name="archive" size="16" />
+                <span>Arsip</span>
+            </a>
+        </div>
         <a href="{{ route('admin.kurikulum.create') }}" class="btn btn-primary">
             <x-ui.icon name="plus" size="16" />
             <span>Tambah Kurikulum</span>
@@ -71,17 +76,15 @@
                                        class="btn btn-sm btn-icon btn-white" title="Edit">
                                         <x-ui.icon name="edit" size="14" />
                                     </a>
-                                    @if($kurikulum->mata_pelajaran_count == 0)
-                                        <form action="{{ route('admin.kurikulum.destroy', $kurikulum->id) }}" 
-                                              method="POST" 
-                                              onsubmit="return confirm('Hapus kurikulum ini?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-icon btn-white text-red-600 hover:text-red-700" title="Hapus">
-                                                <x-ui.icon name="trash" size="14" />
-                                            </button>
-                                        </form>
-                                    @endif
+                                    <form action="{{ route('admin.kurikulum.destroy', $kurikulum->id) }}" 
+                                          method="POST" 
+                                          onsubmit="return confirm('Arsipkan kurikulum ini beserta {{ $kurikulum->mata_pelajaran_count }} mata pelajaran?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-icon btn-white text-amber-600 hover:text-amber-700" title="Arsipkan">
+                                            <x-ui.icon name="archive" size="14" />
+                                        </button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>

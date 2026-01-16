@@ -97,23 +97,84 @@ class KurikulumController extends Controller
     }
 
     /**
-     * Delete kurikulum
+     * Soft delete kurikulum (archive)
      */
     public function destroy(int $id): RedirectResponse
     {
         $kurikulum = Kurikulum::findOrFail($id);
         
-        // Check if kurikulum has mata pelajaran
-        if ($kurikulum->mataPelajaran()->exists()) {
-            return redirect()
-                ->route('admin.kurikulum.index')
-                ->with('error', 'Tidak dapat menghapus kurikulum yang memiliki mata pelajaran.');
-        }
-
-        $kurikulum->delete();
+        $kurikulum->delete(); // Soft delete
+        
+        // Also soft delete related mata pelajaran
+        $kurikulum->mataPelajaran()->delete();
 
         return redirect()
             ->route('admin.kurikulum.index')
-            ->with('success', 'Kurikulum berhasil dihapus.');
+            ->with('success', 'Kurikulum berhasil diarsipkan beserta mata pelajaran di dalamnya.');
+    }
+
+    /**
+     * Display archived kurikulum
+     */
+    public function trash(): View
+    {
+        $kurikulums = Kurikulum::onlyTrashed()
+            ->withCount(['mataPelajaran' => function($q) {
+                $q->withTrashed();
+            }])
+            ->orderBy('deleted_at', 'desc')
+            ->get();
+
+        return view('admin.kurikulum.trash', [
+            'kurikulums' => $kurikulums,
+        ]);
+    }
+
+    /**
+     * Restore soft deleted kurikulum
+     */
+    public function restore(int $id): RedirectResponse
+    {
+        $kurikulum = Kurikulum::onlyTrashed()->findOrFail($id);
+        
+        // Restore kurikulum
+        $kurikulum->restore();
+        
+        // Also restore related mata pelajaran
+        $kurikulum->mataPelajaran()->onlyTrashed()->restore();
+
+        return redirect()
+            ->route('admin.kurikulum.trash')
+            ->with('success', 'Kurikulum berhasil dipulihkan beserta mata pelajaran di dalamnya.');
+    }
+
+    /**
+     * Permanently delete kurikulum
+     */
+    public function forceDelete(int $id): RedirectResponse
+    {
+        $kurikulum = Kurikulum::onlyTrashed()->findOrFail($id);
+        
+        // Check if has jadwal mengajar (even trashed)
+        $hasJadwal = \App\Models\JadwalMengajar::withTrashed()
+            ->whereIn('mata_pelajaran_id', $kurikulum->mataPelajaran()->withTrashed()->pluck('id'))
+            ->exists();
+            
+        if ($hasJadwal) {
+            return redirect()
+                ->route('admin.kurikulum.trash')
+                ->with('error', 'Tidak dapat menghapus permanen kurikulum yang memiliki data jadwal mengajar.');
+        }
+        
+        // Force delete mata pelajaran first
+        $kurikulum->mataPelajaran()->withTrashed()->forceDelete();
+        
+        // Force delete kurikulum
+        $kurikulum->forceDelete();
+
+        return redirect()
+            ->route('admin.kurikulum.trash')
+            ->with('success', 'Kurikulum berhasil dihapus secara permanen.');
     }
 }
+

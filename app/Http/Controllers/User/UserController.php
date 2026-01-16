@@ -134,7 +134,7 @@ class UserController extends Controller
     }
 
     /**
-     * Delete user.
+     * Soft delete user (archive).
      */
     public function destroy(int $id): RedirectResponse
     {
@@ -142,7 +142,82 @@ class UserController extends Controller
 
         return redirect()
             ->route('users.index')
-            ->with('success', 'User berhasil dihapus.');
+            ->with('success', 'User berhasil diarsipkan.');
+    }
+
+    /**
+     * Display archived users.
+     */
+    public function trash(): View
+    {
+        $users = \App\Models\User::onlyTrashed()
+            ->with('role')
+            ->orderBy('deleted_at', 'desc')
+            ->get();
+
+        return view('users.trash', [
+            'users' => $users,
+        ]);
+    }
+
+    /**
+     * Restore soft deleted user.
+     */
+    public function restore(int $id): RedirectResponse
+    {
+        $user = \App\Models\User::onlyTrashed()->findOrFail($id);
+        
+        // Check if email/username (without suffix) already exists
+        $cleanEmail = preg_replace('/_deleted_\d+$/', '', $user->email);
+        $cleanUsername = preg_replace('/_deleted_\d+$/', '', $user->username);
+        
+        if (\App\Models\User::where('email', $cleanEmail)->exists()) {
+            return redirect()
+                ->route('users.trash')
+                ->with('error', "Email '{$cleanEmail}' sudah digunakan oleh user lain. Tidak dapat memulihkan.");
+        }
+        
+        if (\App\Models\User::where('username', $cleanUsername)->exists()) {
+            return redirect()
+                ->route('users.trash')
+                ->with('error', "Username '{$cleanUsername}' sudah digunakan oleh user lain. Tidak dapat memulihkan.");
+        }
+        
+        $user->restore();
+
+        return redirect()
+            ->route('users.trash')
+            ->with('success', "User '{$user->nama}' berhasil dipulihkan.");
+    }
+
+    /**
+     * Permanently delete user.
+     */
+    public function forceDelete(int $id): RedirectResponse
+    {
+        $user = \App\Models\User::onlyTrashed()->findOrFail($id);
+        
+        // Check if user has related records that prevent deletion
+        $hasJadwal = \App\Models\JadwalMengajar::withTrashed()
+            ->where('user_id', $user->id)
+            ->exists();
+            
+        $hasRiwayat = \App\Models\RiwayatPelanggaran::withTrashed()
+            ->where('guru_pencatat_user_id', $user->id)
+            ->exists();
+            
+        if ($hasJadwal || $hasRiwayat) {
+            return redirect()
+                ->route('users.trash')
+                ->with('error', 'Tidak dapat menghapus permanen user yang memiliki data jadwal mengajar atau riwayat pencatatan pelanggaran.');
+        }
+        
+        $nama = $user->nama;
+        $user->forceDelete();
+
+        return redirect()
+            ->route('users.trash')
+            ->with('success', "User '{$nama}' berhasil dihapus secara permanen.");
     }
 
     /**

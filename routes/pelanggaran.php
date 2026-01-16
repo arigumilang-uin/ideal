@@ -84,7 +84,7 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
             'update' => 'jenis-pelanggaran.update',
             'destroy' => 'jenis-pelanggaran.destroy',
         ])
-        ->middleware('role:Operator Sekolah'); // Only operator can manage
+        ->middleware('role:Operator Sekolah');
 
     // Additional Jenis Pelanggaran Routes
     Route::prefix('jenis-pelanggaran')->name('jenis-pelanggaran.')->group(function () {

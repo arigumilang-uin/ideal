@@ -24,7 +24,11 @@
 
 <div class="space-y-6" x-data='dataTable(@json($tableConfig))'>
     {{-- Action Button --}}
-    <div class="flex justify-end">
+    <div class="flex justify-between items-center">
+        <a href="{{ route('konsentrasi.trash') }}" class="btn btn-white">
+            <x-ui.icon name="archive" size="16" />
+            <span>Arsip</span>
+        </a>
         <button 
             type="button" 
             @click="$dispatch('open-konsentrasi-form', { title: 'Tambah Konsentrasi Baru' })"

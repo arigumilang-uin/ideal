@@ -106,17 +106,68 @@ class KelasController extends Controller
     }
 
     /**
-     * Remove the specified kelas
-     * 
-     * REFACTORED: Simple delegation
+     * Remove the specified kelas (soft delete)
      */
     public function destroy(Kelas $kelas)
     {
-        $this->kelasService->deleteKelas($kelas);
+        $kelas->delete();
         
         return redirect()
             ->route('kelas.index')
-            ->with('success', 'Kelas dihapus.');
+            ->with('success', 'Kelas berhasil diarsipkan.');
+    }
+
+    /**
+     * Display archived kelas
+     */
+    public function trash()
+    {
+        $kelasList = Kelas::onlyTrashed()
+            ->with(['jurusan', 'waliKelas'])
+            ->withCount(['siswa' => fn($q) => $q->withTrashed()])
+            ->orderBy('deleted_at', 'desc')
+            ->get();
+
+        return view('kelas.trash', compact('kelasList'));
+    }
+
+    /**
+     * Restore soft deleted kelas
+     */
+    public function restore(int $id)
+    {
+        $kelas = Kelas::onlyTrashed()->findOrFail($id);
+        $kelas->restore();
+
+        return redirect()
+            ->route('kelas.trash')
+            ->with('success', "Kelas '{$kelas->nama_kelas}' berhasil dipulihkan.");
+    }
+
+    /**
+     * Permanently delete kelas
+     */
+    public function forceDelete(int $id)
+    {
+        $kelas = Kelas::onlyTrashed()->findOrFail($id);
+        $nama = $kelas->nama_kelas;
+        
+        // Check if has siswa
+        $hasSiswa = \App\Models\Siswa::withTrashed()
+            ->where('kelas_id', $kelas->id)
+            ->exists();
+            
+        if ($hasSiswa) {
+            return redirect()
+                ->route('kelas.trash')
+                ->with('error', 'Tidak dapat menghapus permanen kelas yang memiliki data siswa.');
+        }
+        
+        $kelas->forceDelete();
+
+        return redirect()
+            ->route('kelas.trash')
+            ->with('success', "Kelas '{$nama}' berhasil dihapus secara permanen.");
     }
     
     /**

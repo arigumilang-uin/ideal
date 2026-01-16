@@ -25,7 +25,11 @@
 
 <div class="space-y-6" x-data='dataTable(@json($tableConfig))'>
     {{-- Action Button --}}
-    <div class="flex justify-end">
+    <div class="flex justify-between items-center">
+        <a href="{{ route('users.trash') }}" class="btn btn-white">
+            <x-ui.icon name="archive" size="16" />
+            <span>Arsip</span>
+        </a>
         <a href="{{ route('users.create') }}" class="btn btn-primary">
             <x-ui.icon name="plus" size="18" />
             <span>Tambah User</span>

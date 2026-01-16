@@ -152,24 +152,104 @@ class PeriodeSemesterController extends Controller
     }
 
     /**
-     * Delete period
+     * Soft delete period (archive)
      */
     public function destroy(int $id): RedirectResponse
     {
         $periode = PeriodeSemester::findOrFail($id);
 
-        // Check if has pertemuan with absensi
-        $hasAbsensi = $periode->jadwalMengajar()->whereHas('absensi')->exists();
-
-        if ($hasAbsensi) {
-            return back()->with('error', 'Periode tidak dapat dihapus karena sudah ada data absensi.');
+        // Can't archive active period
+        if ($periode->is_active) {
+            return back()->with('error', 'Tidak dapat mengarsipkan periode yang sedang aktif.');
         }
+
+        // Soft delete cascade: template_jam, jadwal_mengajar, pertemuan
+        $periode->templateJam()->delete();
+        $periode->jadwalMengajar()->delete();
+        
+        // Delete pertemuan via jadwal
+        \App\Models\Pertemuan::whereIn('jadwal_mengajar_id', 
+            $periode->jadwalMengajar()->withTrashed()->pluck('id')
+        )->delete();
 
         $periode->delete();
 
         return redirect()
             ->route('admin.periode-semester.index')
-            ->with('success', 'Periode semester berhasil dihapus.');
+            ->with('success', 'Periode semester berhasil diarsipkan beserta template jam dan jadwal.');
+    }
+
+    /**
+     * Display archived periods
+     */
+    public function trash(): View
+    {
+        $periodes = PeriodeSemester::onlyTrashed()
+            ->orderBy('deleted_at', 'desc')
+            ->get();
+
+        return view('admin.periode-semester.trash', [
+            'periodes' => $periodes,
+        ]);
+    }
+
+    /**
+     * Restore soft deleted period
+     */
+    public function restore(int $id): RedirectResponse
+    {
+        $periode = PeriodeSemester::onlyTrashed()->findOrFail($id);
+        
+        // Restore cascade: template_jam, jadwal_mengajar, pertemuan
+        $periode->restore();
+        $periode->templateJam()->onlyTrashed()->restore();
+        $periode->jadwalMengajar()->onlyTrashed()->restore();
+        
+        // Restore pertemuan via jadwal
+        \App\Models\Pertemuan::withTrashed()
+            ->whereIn('jadwal_mengajar_id', $periode->jadwalMengajar()->pluck('id'))
+            ->restore();
+
+        return redirect()
+            ->route('admin.periode-semester.trash')
+            ->with('success', 'Periode semester berhasil dipulihkan beserta template jam dan jadwal.');
+    }
+
+    /**
+     * Permanently delete period
+     */
+    public function forceDelete(int $id): RedirectResponse
+    {
+        $periode = PeriodeSemester::onlyTrashed()->findOrFail($id);
+        
+        // Check if has absensi (even on trashed jadwal)
+        $hasAbsensi = \App\Models\Absensi::whereIn('jadwal_mengajar_id', 
+            $periode->jadwalMengajar()->withTrashed()->pluck('id')
+        )->exists();
+            
+        if ($hasAbsensi) {
+            return redirect()
+                ->route('admin.periode-semester.trash')
+                ->with('error', 'Tidak dapat menghapus permanen periode yang memiliki data absensi.');
+        }
+        
+        // Force delete pertemuan
+        \App\Models\Pertemuan::withTrashed()
+            ->whereIn('jadwal_mengajar_id', $periode->jadwalMengajar()->withTrashed()->pluck('id'))
+            ->forceDelete();
+        
+        // Force delete jadwal
+        $periode->jadwalMengajar()->withTrashed()->forceDelete();
+        
+        // Force delete template_jam
+        $periode->templateJam()->withTrashed()->forceDelete();
+        
+        // Force delete periode
+        $periode->forceDelete();
+
+        return redirect()
+            ->route('admin.periode-semester.trash')
+            ->with('success', 'Periode semester berhasil dihapus secara permanen.');
     }
 
     /**

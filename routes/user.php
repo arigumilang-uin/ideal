@@ -16,42 +16,19 @@ use App\Http\Controllers\User\UserController;
 Route::middleware(['auth', 'profile.completed'])->group(function () {
     
     // ===================================================================
-    // USER CRUD ROUTES
-    // ===================================================================
-    
-    Route::resource('users', UserController::class)
-        ->names([
-            'index' => 'users.index',
-            'create' => 'users.create',
-            'store' => 'users.store',
-            'show' => 'users.show',
-            'edit' => 'users.edit',
-            'update' => 'users.update',
-            'destroy' => 'users.destroy',
-        ])
-        ->middleware('role:Operator Sekolah,Kepala Sekolah'); // Only admin roles
-
-    // ===================================================================
-    // USER MANAGEMENT ROUTES
+    // USER MANAGEMENT ROUTES (must be before resource to avoid wildcard conflict)
     // ===================================================================
     
     Route::prefix('users')->name('users.')->middleware('role:Operator Sekolah,Kepala Sekolah')->group(function () {
-        // Password reset (by admin)
-        Route::get('/{id}/reset-password', [UserController::class, 'resetPasswordForm'])
-            ->name('reset-password.form');
+        // Archive routes - MUST be first
+        Route::get('/trash', [UserController::class, 'trash'])
+            ->name('trash');
+        Route::post('/{id}/restore', [UserController::class, 'restore'])
+            ->name('restore');
+        Route::delete('/{id}/force-delete', [UserController::class, 'forceDelete'])
+            ->name('forceDelete');
 
-        Route::post('/{id}/reset-password', [UserController::class, 'resetPassword'])
-            ->name('reset-password');
-
-        // Toggle activation
-        Route::post('/{id}/toggle-activation', [UserController::class, 'toggleActivation'])
-            ->name('toggle-activation');
-
-        // Alias for legacy views that use 'toggle-active' instead of 'toggle-activation'
-        Route::post('/{id}/toggle-active', [UserController::class, 'toggleActivation'])
-            ->name('toggle-active');
-
-        // Bulk operations
+        // Bulk operations (must be before /{id} routes)
         Route::post('/bulk-activate', [UserController::class, 'bulkActivate'])
             ->name('bulk-activate');
 
@@ -67,7 +44,38 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
 
         Route::post('/import', [UserController::class, 'import'])
             ->name('import');
+
+        // Password reset (by admin)
+        Route::get('/{id}/reset-password', [UserController::class, 'resetPasswordForm'])
+            ->name('reset-password.form');
+
+        Route::post('/{id}/reset-password', [UserController::class, 'resetPassword'])
+            ->name('reset-password');
+
+        // Toggle activation
+        Route::post('/{id}/toggle-activation', [UserController::class, 'toggleActivation'])
+            ->name('toggle-activation');
+
+        // Alias for legacy views that use 'toggle-active' instead of 'toggle-activation'
+        Route::post('/{id}/toggle-active', [UserController::class, 'toggleActivation'])
+            ->name('toggle-active');
     });
+
+    // ===================================================================
+    // USER CRUD ROUTES (resource routes - AFTER prefix routes)
+    // ===================================================================
+    
+    Route::resource('users', UserController::class)
+        ->names([
+            'index' => 'users.index',
+            'create' => 'users.create',
+            'store' => 'users.store',
+            'show' => 'users.show',
+            'edit' => 'users.edit',
+            'update' => 'users.update',
+            'destroy' => 'users.destroy',
+        ])
+        ->middleware('role:Operator Sekolah,Kepala Sekolah'); // Only admin roles
 
     // ===================================================================
     // PROFILE ROUTES (All authenticated users)

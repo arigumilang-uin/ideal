@@ -13,7 +13,11 @@
 @section('content')
 <div x-data="{ selectionMode: false, selected: [], selectAll: false }">
     {{-- Action Buttons --}}
-    <div class="flex flex-wrap justify-end gap-2 mb-6">
+    <div class="flex flex-wrap justify-between gap-2 mb-6">
+        <a href="{{ route('jurusan.trash') }}" class="btn btn-white">
+            <x-ui.icon name="archive" size="16" />
+            <span>Arsip</span>
+        </a>
         <button 
             type="button" 
             @click="$dispatch('open-jurusan-form', { title: 'Tambah Jurusan Baru' })"

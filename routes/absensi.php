@@ -59,21 +59,27 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
         // --- Kurikulum ---
         Route::prefix('kurikulum')->name('kurikulum.')->group(function () {
             Route::get('/', [KurikulumController::class, 'index'])->name('index');
+            Route::get('/trash', [KurikulumController::class, 'trash'])->name('trash');
             Route::get('/create', [KurikulumController::class, 'create'])->name('create');
             Route::post('/', [KurikulumController::class, 'store'])->name('store');
             Route::get('/{id}/edit', [KurikulumController::class, 'edit'])->name('edit');
             Route::put('/{id}', [KurikulumController::class, 'update'])->name('update');
             Route::delete('/{id}', [KurikulumController::class, 'destroy'])->name('destroy');
+            Route::post('/{id}/restore', [KurikulumController::class, 'restore'])->name('restore');
+            Route::delete('/{id}/force-delete', [KurikulumController::class, 'forceDelete'])->name('forceDelete');
         });
 
         // --- Periode Semester ---
         Route::prefix('periode-semester')->name('periode-semester.')->group(function () {
             Route::get('/', [PeriodeSemesterController::class, 'index'])->name('index');
+            Route::get('/trash', [PeriodeSemesterController::class, 'trash'])->name('trash');
             Route::get('/create', [PeriodeSemesterController::class, 'create'])->name('create');
             Route::post('/', [PeriodeSemesterController::class, 'store'])->name('store');
             Route::get('/{id}/edit', [PeriodeSemesterController::class, 'edit'])->name('edit');
             Route::put('/{id}', [PeriodeSemesterController::class, 'update'])->name('update');
             Route::delete('/{id}', [PeriodeSemesterController::class, 'destroy'])->name('destroy');
+            Route::post('/{id}/restore', [PeriodeSemesterController::class, 'restore'])->name('restore');
+            Route::delete('/{id}/force-delete', [PeriodeSemesterController::class, 'forceDelete'])->name('forceDelete');
             Route::post('/{id}/set-active', [PeriodeSemesterController::class, 'setActive'])->name('setActive');
             Route::post('/{id}/generate-pertemuan', [PeriodeSemesterController::class, 'generatePertemuan'])->name('generatePertemuan');
             // Tingkat Kurikulum configuration

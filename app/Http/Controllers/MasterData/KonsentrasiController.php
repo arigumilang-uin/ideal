@@ -5,6 +5,7 @@ namespace App\Http\Controllers\MasterData;
 use App\Http\Controllers\Controller;
 use App\Models\Konsentrasi;
 use App\Models\Jurusan;
+use App\Models\Kelas;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -131,22 +132,68 @@ class KonsentrasiController extends Controller
     }
 
     /**
-     * Remove the specified konsentrasi
+     * Remove the specified konsentrasi (soft delete)
      */
     public function destroy(Konsentrasi $konsentrasi)
     {
-        // Check if konsentrasi has kelas
-        if ($konsentrasi->kelas()->exists()) {
-            return redirect()
-                ->route('konsentrasi.index')
-                ->with('error', 'Tidak dapat menghapus konsentrasi yang masih memiliki kelas.');
-        }
-
         $konsentrasi->delete();
 
         return redirect()
             ->route('konsentrasi.index')
-            ->with('success', 'Konsentrasi berhasil dihapus.');
+            ->with('success', 'Konsentrasi berhasil diarsipkan.');
+    }
+
+    /**
+     * Display archived konsentrasi
+     */
+    public function trash()
+    {
+        $konsentrasiList = Konsentrasi::onlyTrashed()
+            ->with('jurusan')
+            ->withCount(['kelas' => fn($q) => $q->withTrashed()])
+            ->orderBy('deleted_at', 'desc')
+            ->get();
+
+        return view('konsentrasi.trash', compact('konsentrasiList'));
+    }
+
+    /**
+     * Restore soft deleted konsentrasi
+     */
+    public function restore(int $id)
+    {
+        $konsentrasi = Konsentrasi::onlyTrashed()->findOrFail($id);
+        $konsentrasi->restore();
+
+        return redirect()
+            ->route('konsentrasi.trash')
+            ->with('success', "Konsentrasi '{$konsentrasi->nama_konsentrasi}' berhasil dipulihkan.");
+    }
+
+    /**
+     * Permanently delete konsentrasi
+     */
+    public function forceDelete(int $id)
+    {
+        $konsentrasi = Konsentrasi::onlyTrashed()->findOrFail($id);
+        $nama = $konsentrasi->nama_konsentrasi;
+        
+        // Check if has kelas
+        $hasKelas = Kelas::withTrashed()
+            ->where('konsentrasi_id', $konsentrasi->id)
+            ->exists();
+            
+        if ($hasKelas) {
+            return redirect()
+                ->route('konsentrasi.trash')
+                ->with('error', 'Tidak dapat menghapus permanen konsentrasi yang memiliki data kelas.');
+        }
+        
+        $konsentrasi->forceDelete();
+
+        return redirect()
+            ->route('konsentrasi.trash')
+            ->with('success', "Konsentrasi '{$nama}' berhasil dihapus secara permanen.");
     }
 
     /**

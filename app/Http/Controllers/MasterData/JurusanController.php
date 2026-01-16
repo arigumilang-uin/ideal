@@ -113,24 +113,80 @@ class JurusanController extends Controller
     }
 
     /**
-     * Remove the specified jurusan
+     * Remove the specified jurusan (soft delete)
      * 
      * REFACTORED from 40 lines to 17 lines
      * ALL logic moved to JurusanService
      */
     public function destroy(Jurusan $jurusan)
     {
-        $result = $this->jurusanService->deleteJurusan($jurusan);
+        // Soft delete with cascade to kelas and konsentrasi
+        $jurusan->kelas()->delete();
+        $jurusan->konsentrasi()->delete();
+        $jurusan->delete();
         
-        if ($result['success']) {
+        return redirect()
+            ->route('jurusan.index')
+            ->with('success', 'Jurusan berhasil diarsipkan beserta kelas dan konsentrasi.');
+    }
+
+    /**
+     * Display archived jurusan
+     */
+    public function trash()
+    {
+        $jurusanList = Jurusan::onlyTrashed()
+            ->withCount(['kelas' => fn($q) => $q->withTrashed()])
+            ->orderBy('deleted_at', 'desc')
+            ->get();
+
+        return view('jurusan.trash', compact('jurusanList'));
+    }
+
+    /**
+     * Restore soft deleted jurusan
+     */
+    public function restore(int $id)
+    {
+        $jurusan = Jurusan::onlyTrashed()->findOrFail($id);
+        
+        // Restore jurusan and cascade
+        $jurusan->restore();
+        $jurusan->kelas()->onlyTrashed()->restore();
+        $jurusan->konsentrasi()->onlyTrashed()->restore();
+
+        return redirect()
+            ->route('jurusan.trash')
+            ->with('success', "Jurusan '{$jurusan->nama_jurusan}' berhasil dipulihkan.");
+    }
+
+    /**
+     * Permanently delete jurusan
+     */
+    public function forceDelete(int $id)
+    {
+        $jurusan = Jurusan::onlyTrashed()->findOrFail($id);
+        $nama = $jurusan->nama_jurusan;
+        
+        // Check if has siswa (even via trashed kelas)
+        $hasSiswa = \App\Models\Siswa::withTrashed()
+            ->whereIn('kelas_id', $jurusan->kelas()->withTrashed()->pluck('id'))
+            ->exists();
+            
+        if ($hasSiswa) {
             return redirect()
-                ->route('jurusan.index')
-                ->with('success', $result['message']);
-        } else {
-            return redirect()
-                ->route('jurusan.index')
-                ->with('error', $result['message']);
+                ->route('jurusan.trash')
+                ->with('error', 'Tidak dapat menghapus permanen jurusan yang memiliki data siswa.');
         }
+        
+        // Force delete kelas first
+        $jurusan->kelas()->withTrashed()->forceDelete();
+        $jurusan->konsentrasi()->withTrashed()->forceDelete();
+        $jurusan->forceDelete();
+
+        return redirect()
+            ->route('jurusan.trash')
+            ->with('success', "Jurusan '{$nama}' berhasil dihapus secara permanen.");
     }
 
     /**

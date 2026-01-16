@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Enums\KategoriPelanggaranEnum;
 
 /**
@@ -16,7 +17,7 @@ use App\Enums\KategoriPelanggaranEnum;
  */
 class KategoriPelanggaran extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     /**
      * Enable timestamps (for audit trail)

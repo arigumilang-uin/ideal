@@ -7,15 +7,16 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Jurusan extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     /**
-     * Beri tahu Laravel bahwa tabel 'jurusan' tidak punya kolom timestamps.
+     * Enable timestamps karena migration sudah menambahkan kolom.
      */
-    public $timestamps = false;
+    public $timestamps = true;
 
     /**
      * Nama tabelnya adalah 'jurusan', bukan 'jurusans'.

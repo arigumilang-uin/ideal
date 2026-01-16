@@ -6,15 +6,16 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Kelas extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     /**
-     * Beri tahu Laravel bahwa tabel 'kelas' tidak punya kolom timestamps.
+     * Enable timestamps karena migration sudah menambahkan kolom.
      */
-    public $timestamps = false;
+    public $timestamps = true;
 
     protected $table = 'kelas';
 
