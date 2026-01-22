@@ -6,15 +6,16 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class JenisPelanggaran extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     /**
-     * Beri tahu Laravel bahwa tabel ini tidak punya timestamps.
+     * Enable timestamps karena migration sudah menambahkan kolom.
      */
-    public $timestamps = false;
+    public $timestamps = true;
 
     /**
      * Nama tabelnya adalah 'jenis_pelanggaran'.

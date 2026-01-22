@@ -8,6 +8,7 @@ use App\Models\Role;
 use App\Models\Jurusan;
 use App\Models\Kelas;
 use Illuminate\Support\Facades\Hash;
+use Carbon\Carbon;
 
 /**
  * User Seeder
@@ -25,19 +26,40 @@ class UserSeeder extends Seeder
         // =====================================================================
         // GET ROLES
         // =====================================================================
-        $roleKepsek = Role::where('nama_role', 'Kepala Sekolah')->first();
-        $roleOperator = Role::where('nama_role', 'Operator Sekolah')->first();
-        $roleWakaKesiswaan = Role::where('nama_role', 'Waka Kesiswaan')->first();
-        $roleWakaSarana = Role::where('nama_role', 'Waka Sarana')->first();
-        $roleKaprodi = Role::where('nama_role', 'Kaprodi')->first();
-        $roleWaliKelas = Role::where('nama_role', 'Wali Kelas')->first();
-        $roleGuru = Role::where('nama_role', 'Guru')->first();
+        $roles = [
+            'kepsek' => Role::where('nama_role', 'Kepala Sekolah')->first(),
+            'operator' => Role::where('nama_role', 'Operator Sekolah')->first(),
+            'developer' => Role::where('nama_role', 'Developer')->first(),
+            'waka_kesiswaan' => Role::where('nama_role', 'Waka Kesiswaan')->first(),
+            'waka_sarana' => Role::where('nama_role', 'Waka Sarana')->first(),
+            'kaprodi' => Role::where('nama_role', 'Kaprodi')->first(),
+            'wali_kelas' => Role::where('nama_role', 'Wali Kelas')->first(),
+            'guru' => Role::where('nama_role', 'Guru')->first(),
+        ];
 
         $defaultPassword = Hash::make('password123');
+        $now = Carbon::now();
         $createdCount = 0;
 
         // =====================================================================
-        // 1. KEPALA SEKOLAH
+        // 1. DEVELOPER (untuk testing)
+        // =====================================================================
+        User::updateOrCreate(
+            ['username' => 'developer'],
+            [
+                'nama' => 'Developer',
+                'username' => 'developer',
+                'email' => 'dev@smkn1.sch.id',
+                'password' => $defaultPassword,
+                'role_id' => $roles['developer']?->id,
+                'is_active' => true,
+                'profile_completed_at' => $now,
+            ]
+        );
+        $createdCount++;
+
+        // =====================================================================
+        // 2. KEPALA SEKOLAH
         // =====================================================================
         User::updateOrCreate(
             ['username' => 'Salmiah, S.Pd.MM'],
@@ -46,14 +68,15 @@ class UserSeeder extends Seeder
                 'username' => 'Salmiah, S.Pd.MM',
                 'email' => 'kepsek@smkn1.sch.id',
                 'password' => $defaultPassword,
-                'role_id' => $roleKepsek?->id,
+                'role_id' => $roles['kepsek']?->id,
                 'is_active' => true,
+                'profile_completed_at' => $now,
             ]
         );
         $createdCount++;
 
         // =====================================================================
-        // 2. OPERATOR
+        // 3. OPERATOR
         // =====================================================================
         User::updateOrCreate(
             ['username' => 'Muhd. Bima Satryo. F, S.Kom'],
@@ -62,14 +85,15 @@ class UserSeeder extends Seeder
                 'username' => 'Muhd. Bima Satryo. F, S.Kom',
                 'email' => 'operator@smkn1.sch.id',
                 'password' => $defaultPassword,
-                'role_id' => $roleOperator?->id,
+                'role_id' => $roles['operator']?->id,
                 'is_active' => true,
+                'profile_completed_at' => $now,
             ]
         );
         $createdCount++;
 
         // =====================================================================
-        // 3. WAKA KESISWAAN
+        // 4. WAKA KESISWAAN
         // =====================================================================
         User::updateOrCreate(
             ['username' => 'Nunung Agus Supriyanto, S.Pd'],
@@ -78,14 +102,15 @@ class UserSeeder extends Seeder
                 'username' => 'Nunung Agus Supriyanto, S.Pd',
                 'email' => 'wakakesiswaan@smkn1.sch.id',
                 'password' => $defaultPassword,
-                'role_id' => $roleWakaKesiswaan?->id,
+                'role_id' => $roles['waka_kesiswaan']?->id,
                 'is_active' => true,
+                'profile_completed_at' => $now,
             ]
         );
         $createdCount++;
 
         // =====================================================================
-        // 4. WAKA SARANA
+        // 5. WAKA SARANA
         // =====================================================================
         User::updateOrCreate(
             ['username' => "U'ud Khusnul Khamidah, SP"],
@@ -94,35 +119,37 @@ class UserSeeder extends Seeder
                 'username' => "U'ud Khusnul Khamidah, SP",
                 'email' => 'wakasarana@smkn1.sch.id',
                 'password' => $defaultPassword,
-                'role_id' => $roleWakaSarana?->id,
+                'role_id' => $roles['waka_sarana']?->id,
                 'is_active' => true,
+                'profile_completed_at' => $now,
             ]
         );
         $createdCount++;
 
         // =====================================================================
-        // 5. KAPRODI
+        // 6. KAPRODI
         // =====================================================================
         $kaprodiData = [
-            ['username' => 'Dharma Siburian, S.P', 'jurusan' => 'Agribisnis Tanaman Perkebunan', 'kode' => 'ATP'],
-            ['username' => 'Suyetmi Zentimer, S.TP', 'jurusan' => 'Agribisnis Pengolahan Hasil Pertanian', 'kode' => 'APHP'],
-            ['username' => 'Asrori Naim, S.Pt', 'jurusan' => 'Agribisnis Ternak Unggas', 'kode' => 'ATU'],
-            ['username' => 'Dorta Simanjuntak, S.Pd', 'jurusan' => 'Teknik Energi Biomassa', 'kode' => 'TEB'],
-            ['username' => 'Devi Hendria, S.E', 'jurusan' => 'Akuntansi dan Keuangan Lembaga', 'kode' => 'AKL'],
+            ['username' => 'Dharma Siburian, S.P', 'jurusan' => 'ATP'],
+            ['username' => 'Suyetmi Zentimer, S.TP', 'jurusan' => 'APHP'],
+            ['username' => 'Asrori Naim, S.Pt', 'jurusan' => 'ATU'],
+            ['username' => 'Dorta Simanjuntak, S.Pd', 'jurusan' => 'TEB'],
+            ['username' => 'Devi Hendria, S.E', 'jurusan' => 'AKL'],
         ];
 
         foreach ($kaprodiData as $kp) {
-            $jurusan = Jurusan::where('nama_jurusan', $kp['jurusan'])->first();
+            $jurusan = Jurusan::where('kode_jurusan', $kp['jurusan'])->first();
             
             $user = User::updateOrCreate(
                 ['username' => $kp['username']],
                 [
-                    'nama' => 'Kaprodi ' . $kp['kode'],
+                    'nama' => 'Kaprodi ' . $kp['jurusan'],
                     'username' => $kp['username'],
-                    'email' => strtolower($kp['kode']) . '.kaprodi@smkn1.sch.id',
+                    'email' => strtolower($kp['jurusan']) . '.kaprodi@smkn1.sch.id',
                     'password' => $defaultPassword,
-                    'role_id' => $roleKaprodi?->id,
+                    'role_id' => $roles['kaprodi']?->id,
                     'is_active' => true,
+                    'profile_completed_at' => $now,
                 ]
             );
 
@@ -134,7 +161,7 @@ class UserSeeder extends Seeder
         }
 
         // =====================================================================
-        // 6. WALI KELAS
+        // 7. WALI KELAS
         // =====================================================================
         $waliKelasData = [
             ['username' => 'Marliana, S.Pd', 'kelas' => 'X AKL 1'],
@@ -159,20 +186,23 @@ class UserSeeder extends Seeder
                     'username' => $wk['username'],
                     'email' => strtolower(str_replace(' ', '', $wk['kelas'])) . '.wali@smkn1.sch.id',
                     'password' => $defaultPassword,
-                    'role_id' => $roleWaliKelas?->id,
+                    'role_id' => $roles['wali_kelas']?->id,
                     'is_active' => true,
+                    'profile_completed_at' => $now,
                 ]
             );
 
             // Assign ke kelas
             if ($kelas) {
                 $kelas->update(['wali_kelas_user_id' => $user->id]);
+            } else {
+                $this->command->warn("  ⚠ Kelas {$wk['kelas']} tidak ditemukan untuk wali kelas {$wk['username']}");
             }
             $createdCount++;
         }
 
         // =====================================================================
-        // 7. GURU (Tanpa Wali Kelas)
+        // 8. GURU (Tanpa Wali Kelas)
         // =====================================================================
         $guruData = [
             'Ari Lestari, SP',
@@ -209,8 +239,9 @@ class UserSeeder extends Seeder
                     'username' => $guru,
                     'email' => 'guru' . $guruCounter . '@smkn1.sch.id',
                     'password' => $defaultPassword,
-                    'role_id' => $roleGuru?->id,
+                    'role_id' => $roles['guru']?->id,
                     'is_active' => true,
+                    'profile_completed_at' => $now,
                 ]
             );
             $guruCounter++;

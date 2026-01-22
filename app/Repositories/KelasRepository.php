@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Models\Kelas;
 use App\Models\Jurusan;
 use App\Models\User;
+use App\Repositories\Contracts\KelasRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
@@ -13,19 +14,96 @@ use Illuminate\Database\Eloquent\Collection;
  * Purpose: Encapsulate all database operations for Kelas
  * Pattern: Repository Pattern
  * Responsibility: Data Access ONLY (no business logic!)
+ * 
+ * @implements KelasRepositoryInterface
  */
-class KelasRepository
+class KelasRepository extends BaseRepository implements KelasRepositoryInterface
 {
     /**
-     * Get all kelas with relationships (for index)
+     * Constructor
      */
-    public function getAllWithRelationships(): Collection
+    public function __construct()
+    {
+        parent::__construct(new Kelas());
+    }
+
+    /**
+     * Get all kelas with statistics.
+     */
+    public function getAllWithStats(): Collection
     {
         return Kelas::with('jurusan', 'konsentrasi', 'waliKelas')
             ->withCount('siswa')
             ->orderBy('nama_kelas')
             ->get();
     }
+
+    /**
+     * Get kelas by jurusan.
+     */
+    public function getByJurusan(int $jurusanId): Collection
+    {
+        return Kelas::where('jurusan_id', $jurusanId)
+            ->with('waliKelas')
+            ->withCount('siswa')
+            ->orderBy('nama_kelas')
+            ->get();
+    }
+
+    /**
+     * Get kelas with wali kelas relation.
+     */
+    public function getWithWaliKelas(int $id): ?Kelas
+    {
+        return Kelas::with('waliKelas')->find($id);
+    }
+
+    /**
+     * Get kelas with siswa relation.
+     */
+    public function getWithSiswa(int $id): ?Kelas
+    {
+        return Kelas::with('siswa')->find($id);
+    }
+
+    /**
+     * Get all kelas for dropdown filter.
+     */
+    public function getForFilter(): Collection
+    {
+        return Kelas::select('id', 'nama_kelas', 'jurusan_id')
+            ->orderBy('nama_kelas')
+            ->get();
+    }
+
+    /**
+     * Assign wali kelas to kelas.
+     */
+    public function assignWaliKelas(int $kelasId, ?int $userId): bool
+    {
+        return Kelas::where('id', $kelasId)->update(['wali_kelas_user_id' => $userId]);
+    }
+
+    /**
+     * Get siswa count for kelas.
+     */
+    public function getSiswaCount(int $kelasId): int
+    {
+        return Kelas::find($kelasId)?->siswa()->count() ?? 0;
+    }
+
+    // ===================================================================
+    // LEGACY METHODS (Keep for backward compatibility)
+    // ===================================================================
+
+    /**
+     * Get all kelas with relationships (for index) - LEGACY ALIAS
+     */
+    public function getAllWithRelationships(): Collection
+    {
+        return $this->getAllWithStats();
+    }
+    
     
     /**
      * Get kelas with relationships (for show)
@@ -64,17 +142,17 @@ class KelasRepository
     }
     
     /**
-     * Update existing kelas
+     * Update existing kelas (legacy method - use parent::update instead)
      */
-    public function update(Kelas $kelas, array $data): bool
+    public function updateKelas(Kelas $kelas, array $data): bool
     {
         return $kelas->update($data);
     }
     
     /**
-     * Delete kelas
+     * Delete kelas (legacy method - use parent::delete instead)
      */
-    public function delete(Kelas $kelas): bool
+    public function deleteKelas(Kelas $kelas): bool
     {
         return $kelas->delete();
     }

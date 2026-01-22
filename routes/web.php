@@ -18,21 +18,24 @@ use App\Http\Controllers\Auth\LoginController;
 */
 
 // ===================================================================
-// AUTHENTICATION ROUTES (Guest)
+// AUTHENTICATION ROUTES (Guest) - Protected with Rate Limiting
 // ===================================================================
 
 Route::middleware('guest')->group(function () {
-    // Login
+    // Login Form (no throttle needed for viewing form)
     Route::get('/', [LoginController::class, 'showLoginForm'])
         ->name('login');
 
+    // Login POST - STRICT THROTTLE: 5 attempts/minute
     Route::post('/', [LoginController::class, 'login'])
+        ->middleware('throttle:login')
         ->name('login.post');
 
     // ===================================================================
-    // GOOGLE OAUTH (Login with Google)
+    // GOOGLE OAUTH (Login with Google) - MODERATE THROTTLE: 10/minute
     // ===================================================================
     Route::get('/auth/google', [\App\Http\Controllers\Auth\SocialAuthController::class, 'redirectToGoogle'])
+        ->middleware('throttle:oauth')
         ->name('auth.google');
 
     Route::get('/auth/google/callback', [\App\Http\Controllers\Auth\SocialAuthController::class, 'handleGoogleCallback'])
@@ -127,6 +130,16 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
 
     Route::get('/dashboard/developer', [\App\Http\Controllers\Dashboard\DeveloperDashboardController::class, 'index'])
         ->name('dashboard.developer');
+
+    // Developer Tools Routes (non-production only)
+    Route::prefix('developer')->name('developer.')->group(function () {
+        Route::post('/switch-role', [\App\Http\Controllers\Utility\DeveloperController::class, 'switchRole'])
+            ->name('switch-role');
+        Route::post('/reset-role', [\App\Http\Controllers\Utility\DeveloperController::class, 'clear'])
+            ->name('reset-role');
+        Route::get('/status', [\App\Http\Controllers\Utility\DeveloperController::class, 'status'])
+            ->name('status');
+    });
 
     // ===================================================================
     // QUICK ACCESS / SHORTCUTS

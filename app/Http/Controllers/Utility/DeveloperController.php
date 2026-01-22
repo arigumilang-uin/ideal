@@ -69,6 +69,45 @@ class DeveloperController extends Controller
         return redirect('/')->with('success', "Impersonating role: {$roleNameActual}");
     }
 
+    /**
+     * Switch role via POST (from developer dashboard form)
+     */
+    public function switchRole(Request $request)
+    {
+        // Only allow when not production
+        if (app()->environment('production')) {
+            abort(403, 'Impersonation not allowed in production.');
+        }
+
+        $roleId = $request->input('role_id');
+        $role = Role::find($roleId);
+        
+        if (! $role) {
+            return redirect()->back()->withErrors(['role' => 'Role not found']);
+        }
+
+        Session::put('developer_role_override', $role->nama_role);
+
+        // Redirect based on role
+        $route = match($role->nama_role) {
+            'Operator Sekolah', 'Waka Kesiswaan' => 'dashboard.admin',
+            'Kepala Sekolah' => 'dashboard.kepsek',
+            'Kaprodi' => 'dashboard.kaprodi',
+            'Wali Kelas' => 'dashboard.walikelas',
+            'Waka Sarana' => 'dashboard.waka-sarana',
+            'Wali Murid' => 'dashboard.wali_murid',
+            'Developer' => 'dashboard.developer',
+            'Guru' => 'absensi.index',
+            default => 'dashboard.admin',
+        };
+
+        if (\Illuminate\Support\Facades\Route::has($route)) {
+            return redirect()->route($route)->with('success', "Now viewing as: {$role->nama_role}");
+        }
+
+        return redirect('/')->with('success', "Now viewing as: {$role->nama_role}");
+    }
+
     public function clear()
     {
         if (app()->environment('production')) {

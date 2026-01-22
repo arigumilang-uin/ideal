@@ -21,6 +21,13 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
     // JURUSAN ROUTES
     // ===================================================================
     
+    // Archive routes MUST be before resource routes (to avoid wildcard conflict)
+    Route::prefix('jurusan')->name('jurusan.')->middleware('role:Operator Sekolah,Waka Kurikulum')->group(function () {
+        Route::get('/trash', [JurusanController::class, 'trash'])->name('trash');
+        Route::post('/{id}/restore', [JurusanController::class, 'restore'])->name('restore');
+        Route::delete('/{id}/force-delete', [JurusanController::class, 'forceDelete'])->name('forceDelete');
+    });
+    
     Route::resource('jurusan', JurusanController::class)
         ->names([
             'index' => 'jurusan.index',
@@ -31,11 +38,18 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
             'update' => 'jurusan.update',
             'destroy' => 'jurusan.destroy',
         ])
-        ->middleware('role:Operator Sekolah');
+        ->middleware('role:Operator Sekolah,Waka Kurikulum');
 
     // ===================================================================
     // KONSENTRASI ROUTES (Konsentrasi Keahlian)
     // ===================================================================
+    
+    // Archive routes MUST be before resource routes
+    Route::prefix('konsentrasi')->name('konsentrasi.')->middleware('role:Operator Sekolah,Waka Kurikulum')->group(function () {
+        Route::get('/trash', [KonsentrasiController::class, 'trash'])->name('trash');
+        Route::post('/{id}/restore', [KonsentrasiController::class, 'restore'])->name('restore');
+        Route::delete('/{id}/force-delete', [KonsentrasiController::class, 'forceDelete'])->name('forceDelete');
+    });
     
     Route::resource('konsentrasi', KonsentrasiController::class)
         ->names([
@@ -47,7 +61,7 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
             'update' => 'konsentrasi.update',
             'destroy' => 'konsentrasi.destroy',
         ])
-        ->middleware('role:Operator Sekolah');
+        ->middleware('role:Operator Sekolah,Waka Kurikulum');
     
     // API: Get konsentrasi by jurusan (for dynamic dropdown in Kelas form)
     Route::get('/api/konsentrasi-by-jurusan', [KonsentrasiController::class, 'getByJurusan'])
@@ -56,6 +70,13 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
     // ===================================================================
     // KELAS ROUTES
     // ===================================================================
+    
+    // Archive routes MUST be before resource routes
+    Route::prefix('kelas')->name('kelas.')->middleware('role:Operator Sekolah,Waka Kurikulum')->group(function () {
+        Route::get('/trash', [KelasController::class, 'trash'])->name('trash');
+        Route::post('/{id}/restore', [KelasController::class, 'restore'])->name('restore');
+        Route::delete('/{id}/force-delete', [KelasController::class, 'forceDelete'])->name('forceDelete');
+    });
     
     Route::resource('kelas', KelasController::class)
         ->parameters(['kelas' => 'kelas']) // Force parameter name to be 'kelas' not 'kela'
@@ -68,5 +89,5 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
             'update' => 'kelas.update',
             'destroy' => 'kelas.destroy',
         ])
-        ->middleware('role:Operator Sekolah');
+        ->middleware('role:Operator Sekolah,Waka Kurikulum');
 });

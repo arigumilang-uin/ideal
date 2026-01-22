@@ -29,18 +29,20 @@ class PelanggaranService
     /**
      * PelanggaranService constructor.
      * 
-     * Dependency injection: repositories dan rules engine.
+     * Dependency injection: repositories dan services.
      *
      * @param RiwayatPelanggaranRepositoryInterface $riwayatRepo
      * @param JenisPelanggaranRepositoryInterface $jenisRepo
      * @param SiswaRepositoryInterface $siswaRepo
-     * @param PelanggaranRulesEngine $rulesEngine
+     * @param PelanggaranRulesEngine $rulesEngine - For surat evaluation
+     * @param PoinCalculationService $poinService - For poin calculation
      */
     public function __construct(
         private RiwayatPelanggaranRepositoryInterface $riwayatRepo,
         private JenisPelanggaranRepositoryInterface $jenisRepo,
         private SiswaRepositoryInterface $siswaRepo,
         private PelanggaranRulesEngine $rulesEngine,
+        private PoinCalculationService $poinService,
         private \App\Services\TindakLanjut\TindakLanjutNotificationService $notificationService
     ) {}
 
@@ -198,6 +200,18 @@ class PelanggaranService
      */
     public function deletePelanggaran(int $id, int $siswaId, ?string $buktiFotoPath = null): bool
     {
+        // BUSINESS VALIDATION: Cannot delete if active case exists
+        $kasusAktif = \App\Models\TindakLanjut::where('siswa_id', $siswaId)
+            ->where('status', 'Ditangani')
+            ->exists();
+        
+        if ($kasusAktif) {
+            throw new BusinessValidationException(
+                'TIDAK DAPAT MENGHAPUS: Siswa ini memiliki kasus yang sedang ditangani. ' .
+                'Harap selesaikan kasus terlebih dahulu sebelum menghapus riwayat pelanggaran.'
+            );
+        }
+
         // Hapus file bukti foto jika ada
         if ($buktiFotoPath) {
             Storage::disk('public')->delete($buktiFotoPath);
@@ -232,14 +246,14 @@ class PelanggaranService
     /**
      * Hitung total poin pelanggaran siswa.
      * 
-     * Delegasi ke RulesEngine untuk calculation.
+     * Delegasi ke PoinCalculationService.
      *
      * @param int $siswaId
      * @return int
      */
     public function calculateTotalPoin(int $siswaId): int
     {
-        return $this->rulesEngine->hitungTotalPoinAkumulasi($siswaId);
+        return $this->poinService->hitungTotalPoin($siswaId);
     }
 
     /**

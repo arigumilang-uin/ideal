@@ -22,8 +22,11 @@
     
     <!-- Breadcrumb / School Year (Desktop only) -->
     <div class="navbar-title hidden lg:block">
-        <span class="text-gray-400">Tahun Ajaran:</span>
-        <span class="font-medium text-gray-700">{{ school_year() ?? date('Y') . '/' . (date('Y') + 1) }}</span>
+        @if(current_periode())
+            <span class="font-medium text-gray-700">{{ current_semester_name() }} {{ school_year() }}</span>
+        @else
+            <span class="font-medium text-gray-700">{{ school_year() ?? date('Y') . '/' . (date('Y') + 1) }}</span>
+        @endif
     </div>
 </div>
 

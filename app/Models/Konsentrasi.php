@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Model Konsentrasi (Konsentrasi Keahlian)
@@ -23,12 +24,12 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
  */
 class Konsentrasi extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     /**
-     * Tabel tidak menggunakan timestamps.
+     * Enable timestamps karena migration sudah menambahkan kolom.
      */
-    public $timestamps = false;
+    public $timestamps = true;
 
     /**
      * Nama tabel di database.

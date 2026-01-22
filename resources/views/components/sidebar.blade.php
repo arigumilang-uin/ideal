@@ -4,6 +4,20 @@
     $role = $user?->effectiveRoleName() ?? $user?->role?->nama_role ?? 'Guest';
     $isDeveloper = $user?->isDeveloper() ?? false;
     $override = session('developer_role_override');
+    
+    // Get user identifier with priority: NIP > NI PPPK > NUPTK > HP
+    $userIdentifier = null;
+    if ($user) {
+        if (!empty($user->nip)) {
+            $userIdentifier = $user->nip;
+        } elseif (!empty($user->ni_pppk)) {
+            $userIdentifier = $user->ni_pppk;
+        } elseif (!empty($user->nuptk)) {
+            $userIdentifier = $user->nuptk;
+        } elseif (!empty($user->no_hp)) {
+            $userIdentifier = $user->no_hp;
+        }
+    }
 @endphp
 
 <!-- Brand (Hidden on mobile, shown in navbar instead) -->
@@ -30,6 +44,9 @@
         {{ strtoupper(substr($user->username ?? 'U', 0, 1)) }}
     </div>
     <div class="sidebar-user-info">
+        @if($userIdentifier)
+            <div class="sidebar-user-id">{{ $userIdentifier }}</div>
+        @endif
         <div class="sidebar-user-name">{{ Str::limit($user->username ?? 'User', 18) }}</div>
         <div class="sidebar-user-role">{{ $role }}</div>
     </div>
@@ -65,6 +82,7 @@
                     $role === 'Kaprodi' => route('dashboard.kaprodi'),
                     $role === 'Wali Murid' => route('dashboard.wali_murid'),
                     $role === 'Waka Sarana' => route('dashboard.waka-sarana'),
+                    $role === 'Waka Kurikulum' => route('dashboard.admin'),
                     default => route('dashboard.admin')
                 };
             @endphp
@@ -77,8 +95,8 @@
         </ul>
     @endunless
     
-    {{-- Operational Menu (Guru, Wali Kelas, Waka, Kaprodi, Waka Sarana) --}}
-    @if(in_array($role, ['Guru', 'Wali Kelas', 'Waka Kesiswaan', 'Kaprodi', 'Waka Sarana']) || $isDeveloper)
+    {{-- Operational Menu (Guru, Wali Kelas, Waka, Kaprodi, Waka Sarana, Waka Kurikulum) --}}
+    @if(in_array($role, ['Guru', 'Wali Kelas', 'Waka Kesiswaan', 'Waka Kurikulum', 'Kaprodi', 'Waka Sarana']) || $isDeveloper)
         <div class="sidebar-section">Operasional</div>
         <ul class="sidebar-menu">
             <li class="sidebar-menu-item">
@@ -91,6 +109,28 @@
                 <a href="{{ route('my-riwayat.index') }}" class="sidebar-menu-link {{ Request::routeIs('my-riwayat.*', 'riwayat.my') ? 'active' : '' }}">
                     <x-ui.icon name="file-text" class="sidebar-menu-icon" />
                     <span>Riwayat Saya</span>
+                </a>
+            </li>
+        </ul>
+    @endif
+    
+    {{-- Absensi Menu (Users with Jadwal Mengajar) --}}
+    @php
+        $hasJadwal = $user ? \App\Models\JadwalMengajar::where('user_id', $user->id)->where('is_active', true)->exists() : false;
+    @endphp
+    @if($hasJadwal || $isDeveloper)
+        <div class="sidebar-section">Absensi</div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-menu-item">
+                <a href="{{ route('absensi.index') }}" class="sidebar-menu-link {{ Request::routeIs('absensi.index', 'absensi.grid') ? 'active' : '' }}">
+                    <x-ui.icon name="clipboard" class="sidebar-menu-icon" />
+                    <span>Jadwal Mengajar</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item">
+                <a href="{{ route('absensi.report') }}" class="sidebar-menu-link {{ Request::routeIs('absensi.report') ? 'active' : '' }}">
+                    <x-ui.icon name="bar-chart-2" class="sidebar-menu-icon" />
+                    <span>Rekap Absensi</span>
                 </a>
             </li>
         </ul>
@@ -188,6 +228,105 @@
                 <a href="{{ route('kelas.index') }}" class="sidebar-menu-link {{ Request::routeIs('kelas.*') ? 'active' : '' }}">
                     <x-ui.icon name="layout" class="sidebar-menu-icon" />
                     <span>Data Kelas</span>
+                </a>
+            </li>
+        </ul>
+    @endif
+    
+    {{-- Admin Pelajaran Menu (Operator Only) --}}
+    @if($role === 'Operator Sekolah' || $isDeveloper)
+        <div class="sidebar-section">Admin Pelajaran</div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-menu-item">
+                <a href="{{ route('admin.kurikulum.index') }}" class="sidebar-menu-link {{ Request::routeIs('admin.kurikulum.*') ? 'active' : '' }}">
+                    <x-ui.icon name="layers" class="sidebar-menu-icon" />
+                    <span>Kurikulum</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item">
+                <a href="{{ route('admin.periode-semester.index') }}" class="sidebar-menu-link {{ Request::routeIs('admin.periode-semester.*') ? 'active' : '' }}">
+                    <x-ui.icon name="calendar" class="sidebar-menu-icon" />
+                    <span>Periode Semester</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item">
+                <a href="{{ route('admin.mata-pelajaran.index') }}" class="sidebar-menu-link {{ Request::routeIs('admin.mata-pelajaran.*') ? 'active' : '' }}">
+                    <x-ui.icon name="book-open" class="sidebar-menu-icon" />
+                    <span>Mata Pelajaran</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item">
+                <a href="{{ route('admin.template-jam.index') }}" class="sidebar-menu-link {{ Request::routeIs('admin.template-jam.*') ? 'active' : '' }}">
+                    <x-ui.icon name="clock" class="sidebar-menu-icon" />
+                    <span>Template Jam</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item">
+                <a href="{{ route('admin.jadwal-mengajar.index') }}" class="sidebar-menu-link {{ Request::routeIs('admin.jadwal-mengajar.*') ? 'active' : '' }}">
+                    <x-ui.icon name="grid" class="sidebar-menu-icon" />
+                    <span>Jadwal Mengajar</span>
+                </a>
+            </li>
+        </ul>
+    @endif
+    
+    {{-- Kurikulum Menu (Waka Kurikulum) --}}
+    @if($role === 'Waka Kurikulum' || $isDeveloper)
+        <div class="sidebar-section">Kurikulum</div>
+        <ul class="sidebar-menu">
+            {{-- Data Siswa (list only) --}}
+            <li class="sidebar-menu-item">
+                <a href="{{ route('siswa.index') }}" class="sidebar-menu-link {{ Request::routeIs('siswa.index', 'siswa.show') ? 'active' : '' }}">
+                    <x-ui.icon name="users" class="sidebar-menu-icon" />
+                    <span>Daftar Siswa</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item">
+                <a href="{{ route('jurusan.index') }}" class="sidebar-menu-link {{ Request::routeIs('jurusan.*') ? 'active' : '' }}">
+                    <x-ui.icon name="hexagon" class="sidebar-menu-icon" />
+                    <span>Data Jurusan</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item">
+                <a href="{{ route('konsentrasi.index') }}" class="sidebar-menu-link {{ Request::routeIs('konsentrasi.*') ? 'active' : '' }}">
+                    <x-ui.icon name="layers" class="sidebar-menu-icon" />
+                    <span>Data Konsentrasi</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item">
+                <a href="{{ route('kelas.index') }}" class="sidebar-menu-link {{ Request::routeIs('kelas.*') ? 'active' : '' }}">
+                    <x-ui.icon name="layout" class="sidebar-menu-icon" />
+                    <span>Data Kelas</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item">
+                <a href="{{ route('admin.kurikulum.index') }}" class="sidebar-menu-link {{ Request::routeIs('admin.kurikulum.*') ? 'active' : '' }}">
+                    <x-ui.icon name="book" class="sidebar-menu-icon" />
+                    <span>Kurikulum</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item">
+                <a href="{{ route('admin.periode-semester.index') }}" class="sidebar-menu-link {{ Request::routeIs('admin.periode-semester.*') ? 'active' : '' }}">
+                    <x-ui.icon name="calendar" class="sidebar-menu-icon" />
+                    <span>Periode Semester</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item">
+                <a href="{{ route('admin.mata-pelajaran.index') }}" class="sidebar-menu-link {{ Request::routeIs('admin.mata-pelajaran.*') ? 'active' : '' }}">
+                    <x-ui.icon name="book-open" class="sidebar-menu-icon" />
+                    <span>Mata Pelajaran</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item">
+                <a href="{{ route('admin.template-jam.index') }}" class="sidebar-menu-link {{ Request::routeIs('admin.template-jam.*') ? 'active' : '' }}">
+                    <x-ui.icon name="clock" class="sidebar-menu-icon" />
+                    <span>Template Jam</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item">
+                <a href="{{ route('admin.jadwal-mengajar.index') }}" class="sidebar-menu-link {{ Request::routeIs('admin.jadwal-mengajar.*') ? 'active' : '' }}">
+                    <x-ui.icon name="grid" class="sidebar-menu-icon" />
+                    <span>Jadwal Mengajar</span>
                 </a>
             </li>
         </ul>

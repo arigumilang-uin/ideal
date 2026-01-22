@@ -35,7 +35,8 @@ class TindakLanjutController extends Controller
      * @param TindakLanjutService $tindakLanjutService
      */
     public function __construct(
-        private TindakLanjutService $tindakLanjutService
+        private TindakLanjutService $tindakLanjutService,
+        private \App\Services\TindakLanjut\SuratPrintingService $printingService
     ) {}
 
     /**
@@ -348,53 +349,15 @@ class TindakLanjutController extends Controller
         return redirect()->route('tindak-lanjut.preview-surat', $id)->with('success', 'Surat berhasil diperbarui!');
     }
 
+
     /**
      * Cetak surat (Download PDF + Log).
      */
     public function cetakSurat(int $id)
     {
-        $kasus = \App\Models\TindakLanjut::with(['siswa.kelas.jurusan', 'siswa.waliMurid', 'suratPanggilan'])->findOrFail($id);
-        $surat = $kasus->suratPanggilan;
-
-        // Log print activity
-        \App\Models\SuratPanggilanPrintLog::create([
-            'surat_panggilan_id' => $surat->id,
-            'user_id' => auth()->id(),
-            'printed_at' => now(),
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-        ]);
-
-        // Convert logo to Base64
-        $path = public_path('assets/images/logo_riau.png');
-        $logoBase64 = null;
-        if (file_exists($path)) {
-            $type = pathinfo($path, PATHINFO_EXTENSION);
-            $data = file_get_contents($path);
-            $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
-        }
-
-        // Convert pembina roles
-        $pembinaRoles = $surat->pembina_roles ?? ['Wali Kelas', 'Waka Kesiswaan', 'Kepala Sekolah'];
-        $pihakTerlibat = [
-            'wali_kelas' => in_array('Wali Kelas', $pembinaRoles),
-            'kaprodi' => in_array('Kaprodi', $pembinaRoles),
-            'waka_kesiswaan' => in_array('Waka Kesiswaan', $pembinaRoles) || in_array('Waka Sarana', $pembinaRoles),
-            'kepala_sekolah' => in_array('Kepala Sekolah', $pembinaRoles),
-        ];
-
-        // Generate PDF
-        $pdf = \PDF::loadView('pdf.surat-panggilan', [
-            'siswa' => $kasus->siswa,
-            'surat' => $surat,
-            'logoBase64' => $logoBase64,
-            'pihakTerlibat' => $pihakTerlibat,
-        ]);
-
-        $pdf->setPaper([0, 0, 609.4488, 935.433], 'portrait');
-        $filename = 'Surat_Panggilan_' . $kasus->siswa->nisn . '.pdf';
-
-        return $pdf->stream($filename);
+        $result = $this->printingService->generateSuratPdf($id, auth()->id());
+        
+        return $result['pdf_stream']->stream($result['filename']);
     }
 
     /**

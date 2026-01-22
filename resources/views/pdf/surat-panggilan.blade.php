@@ -1,11 +1,19 @@
+@php
+    // Check if we're in preview mode (included in a page) or PDF mode (standalone)
+    $isPreviewMode = isset($previewMode) && $previewMode === true;
+@endphp
+
+@if(!$isPreviewMode)
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <title>Surat Panggilan - {{ $siswa->nama_siswa }}</title>
+@endif
     <style>
         /* 
          * FINAL REVISION - COMPREHENSIVE FIXES
+         * CSS scoped for both PDF mode and Preview mode
          */
         
         @page {
@@ -13,27 +21,40 @@
             margin: 1cm 2cm 2cm 2cm; /* MARGIN ATAS DIKURANGI JADI 1CM */
         }
         
+        /* PDF Mode: Apply to body */
+        @if(!$isPreviewMode)
         body {
             font-family: 'Times New Roman', Times, serif;
             font-size: 12pt;
-            line-height: 1.5; /* JARAK ANTAR BARIS LEBIH LEGA */
+            line-height: 1.5;
             margin: 0;
             padding: 0;
             color: #000;
         }
+        @endif
         
-        table {
+        /* Preview Mode: Scope all styles to .surat-preview-container */
+        .surat-preview-container {
+            font-family: 'Times New Roman', Times, serif !important;
+            font-size: 12pt !important;
+            line-height: 1.5 !important;
+            color: #000 !important;
+            padding: 20px;
+        }
+        
+        .surat-preview-container table {
             width: 100%;
             border-collapse: collapse;
             border-spacing: 0;
         }
         
-        td {
+        .surat-preview-container td {
             padding: 0;
             vertical-align: top;
         }
         
         /* CSS KOP */
+        .surat-preview-container .kop-provinsi,
         .kop-provinsi {
             font-size: 16pt;
             font-weight: bold;
@@ -43,6 +64,7 @@
             line-height: 1;
         }
         
+        .surat-preview-container .kop-dinas,
         .kop-dinas {
             font-size: 16pt;
             font-weight: bold;
@@ -52,6 +74,7 @@
             line-height: 1;
         }
         
+        .surat-preview-container .kop-sekolah-container,
         .kop-sekolah-container {
             width: 100%;
             text-align: center;
@@ -60,50 +83,57 @@
             display: block;
         }
 
+        .surat-preview-container .kop-sekolah,
         .kop-sekolah {
-            font-size: 13pt; /* TURUN DARI 14PT AGAR MUAT */
+            font-size: 13pt;
             font-weight: bold;     
             text-transform: uppercase;
-            
             text-shadow: 1px 0 0 #000; 
-            transform: scale(0.85, 2.5);  /* LEBIH KURUS (0.85) AGAR TIDAK LEWAT MARGIN */
+            transform: scale(0.85, 2.5);
             transform-origin: center top; 
-            
             display: inline-block;
             white-space: nowrap;
-            
             margin-top: 2px;
             margin-left: auto;
             margin-right: auto;
         }
         
+        .surat-preview-container .kop-bidang,
         .kop-bidang {
             font-size: 11pt;
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 0px;
-            /* JARAK KE ATAS DITAMBAH (KEBAWAHKAN SEDIKIT DARI SEKOLAH) */
             margin-top: 18px; 
             display: inline-block;
-            /* JARAK KE BAWAH DIHAPUS BIAR DEKAT ALAMAT */
             margin-bottom: 0px; 
         }
         
+        .surat-preview-container .kop-alamat,
         .kop-alamat {
-            font-size: 9pt; /* TURUN DARI 10PT AGAR LEBIH KECIL */
+            font-size: 9pt;
             margin-top: 2px; 
             line-height: 1.2;
         }
         
         /* ISI SURAT */
+        .surat-preview-container .indent,
         .indent { text-indent: 40px; }
         
-        /* Justify diganti Left sesuai request "Rata Kiri" */
-        p { text-align: left; margin-bottom: 5px; margin-top: 5px; } 
+        .surat-preview-container p,
+        .surat-preview-container p { 
+            text-align: left; 
+            margin-bottom: 5px; 
+            margin-top: 5px; 
+        }
 
     </style>
+@if(!$isPreviewMode)
 </head>
 <body>
+@else
+<div class="surat-preview-container">
+@endif
 
     {{-- KOP SURAT --}}
     {{-- Hapus border-bottom di sini untuk hindari duplikasi --}}
@@ -201,7 +231,7 @@
         
         {{-- Hapus class 'indent', ganti jadi rata kiri murni --}}
         <p style="text-align: left; margin-bottom: 5px;">
-            Menindak Lanjuti masalah kedisiplinan Siswa di Sekolah, kami bermaksud memanggil orang tua/wali dan juga peserta didik atas Nama <strong>{{ $siswa->nama_siswa }}</strong> Kelas/Jurusan <strong>{{ $siswa->kelas->nama_kelas ?? '...........' }}</strong>
+            Menindak Lanjuti masalah kedisiplinan Siswa di Sekolah, kami bermaksud memanggil orang tua/wali dan juga peserta didik atas Nama <strong>{{ $siswa->nama_siswa }}</strong> Kelas/Jurusan <strong>{{ $siswa->kelas->nama_kelas ?? '...........' }}/{{ $siswa->kelas->jurusan->nama_jurusan ?? '...........' }}</strong>
         </p>
         
         {{-- Margin top dikurangi (5px) agar DEKAT dengan teks di atasnya --}}
@@ -240,29 +270,30 @@
         </p>
     </div>
 
-    {{-- TANDA TANGAN DINAMIS BERDASARKAN PIHAK YANG TERLIBAT --}}
+    {{-- TANDA TANGAN DINAMIS BERDASARKAN PEMBINA YANG TERLIBAT --}}
     
     @php
-        // Hitung jumlah pihak yang terlibat
-        $jumlahPihak = collect($pihakTerlibat)->filter()->count();
+        // Ambil pembina_roles dari surat (array of role names)
+        $pembinaRoles = $surat->pembina_roles ?? [];
         
-        // Tentukan template yang digunakan
-        $templateType = '';
-        if ($pihakTerlibat['wali_kelas'] && !$pihakTerlibat['kaprodi'] && !$pihakTerlibat['waka_kesiswaan'] && !$pihakTerlibat['kepala_sekolah']) {
-            $templateType = 'wali_only';
-        } elseif ($pihakTerlibat['wali_kelas'] && $pihakTerlibat['kaprodi'] && !$pihakTerlibat['waka_kesiswaan'] && !$pihakTerlibat['kepala_sekolah']) {
-            $templateType = 'wali_kaprodi';
-        } elseif ($pihakTerlibat['wali_kelas'] && $pihakTerlibat['waka_kesiswaan'] && !$pihakTerlibat['kaprodi'] && !$pihakTerlibat['kepala_sekolah']) {
-            $templateType = 'wali_waka';
-        } elseif ($pihakTerlibat['wali_kelas'] && $pihakTerlibat['kaprodi'] && $pihakTerlibat['waka_kesiswaan'] && !$pihakTerlibat['kepala_sekolah']) {
-            $templateType = 'wali_kaprodi_waka';
-        } else {
-            $templateType = 'full'; // Template penuh (tanpa Kaprodi, hanya Wali+Waka+Kepsek)
+        // Urutan hierarki dari TERTINGGI ke TERENDAH
+        $hierarki = ['Kepala Sekolah', 'Waka Kesiswaan', 'Waka Sarana', 'Kaprodi', 'Wali Kelas'];
+        
+        // Filter hanya pembina yang terlibat dan urutkan berdasarkan hierarki
+        $activePembina = [];
+        foreach ($hierarki as $role) {
+            if (in_array($role, $pembinaRoles)) {
+                $activePembina[] = $role;
+            }
         }
         
-        // Helper function untuk mendapatkan data pembina dari pembina_data
+        // Balik urutan: TERENDAH ke TERTINGGI (untuk layout: terendah di kanan)
+        $activePembina = array_reverse($activePembina);
+        $jumlahPembina = count($activePembina);
+        
+        // Helper function untuk mendapatkan data pembina
         $getPembinaData = function($jabatan) use ($surat, $siswa) {
-            // Cari di pembina_data
+            // Cari di pembina_data yang sudah disimpan di surat
             if (isset($surat->pembina_data) && is_array($surat->pembina_data)) {
                 foreach ($surat->pembina_data as $pembina) {
                     if (($pembina['jabatan'] ?? '') === $jabatan) {
@@ -282,6 +313,9 @@
                 case 'Waka Kesiswaan':
                     $user = \App\Models\User::whereHas('role', fn($q) => $q->where('nama_role', 'Waka Kesiswaan'))->first();
                     break;
+                case 'Waka Sarana':
+                    $user = \App\Models\User::whereHas('role', fn($q) => $q->where('nama_role', 'Waka Sarana'))->first();
+                    break;
                 case 'Kepala Sekolah':
                     $user = \App\Models\User::whereHas('role', fn($q) => $q->where('nama_role', 'Kepala Sekolah'))->first();
                     break;
@@ -290,128 +324,155 @@
             }
             
             if ($user) {
-                $nipLabel = !empty($user->nip) ? 'NIP.' : (!empty($user->nuptk) ? 'NUPTK.' : 'NIP.');
                 return [
                     'username' => $user->username,
                     'nama' => $user->nama,
-                    'nip' => $user->nip ?? $user->nuptk ?? null,
-                    'nip_label' => $nipLabel,
+                    'nip' => $user->getIdentifierNumber(),
+                    'nip_label' => $user->getIdentifierLabel() . '.',
                 ];
             }
             
             return null;
         };
         
-        // Get pembina data
-        $waliKelas = $getPembinaData('Wali Kelas');
-        $kaprodi = $getPembinaData('Kaprodi');
-        $wakaKesiswaan = $getPembinaData('Waka Kesiswaan');
-        $kepalaSekolah = $getPembinaData('Kepala Sekolah');
+        // Helper untuk menampilkan label jabatan yang proper
+        $getJabatanLabel = function($role) {
+            return match($role) {
+                'Kepala Sekolah' => 'Kepala Sekolah',
+                'Waka Kesiswaan' => 'Waka. Kesiswaan',
+                'Waka Sarana' => 'Waka. Sarana',
+                'Kaprodi' => 'Ketua Program Keahlian',
+                'Wali Kelas' => 'Wali Kelas',
+                default => $role,
+            };
+        };
     @endphp
     
     <table width="100%" border="0" style="margin-top: 40px;">
         
-        @if($templateType === 'wali_only')
-            {{-- Template 1: Hanya Wali Kelas (KANAN) --}}
+        @if($jumlahPembina === 1)
+            {{-- 1 Pembina: Di KANAN --}}
+            @php $p1 = $getPembinaData($activePembina[0]); @endphp
             <tr>
+                <td width="50%" align="center">&nbsp;</td>
                 <td width="50%" align="center">
-                    &nbsp;
-                </td>
-                <td width="50%" align="center">
-                    Wali Kelas
+                    {{ $getJabatanLabel($activePembina[0]) }}
                     <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $waliKelas['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $waliKelas['nip_label'] ?? 'NIP.' }} {{ $waliKelas['nip'] ?? '' }}
+                    <strong style="text-decoration: underline;">{{ $p1['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $p1['nip_label'] ?? 'NIP.' }} {{ $p1['nip'] ?? '' }}
                 </td>
             </tr>
             
-        @elseif($templateType === 'wali_kaprodi')
-            {{-- Template 2: Kaprodi (KIRI) + Wali Kelas (KANAN) --}}
+        @elseif($jumlahPembina === 2)
+            {{-- 2 Pembina: Lebih tinggi di KIRI, lebih rendah di KANAN --}}
+            {{-- activePembina[0] = terendah (kanan), activePembina[1] = tertinggi (kiri) --}}
+            @php 
+                $pRight = $getPembinaData($activePembina[0]); // Terendah
+                $pLeft = $getPembinaData($activePembina[1]);  // Tertinggi
+            @endphp
             <tr>
                 <td width="50%" align="center">
-                    Ketua Program Keahlian
+                    {{ $getJabatanLabel($activePembina[1]) }}
                     <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $kaprodi['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $kaprodi['nip_label'] ?? 'NIP.' }} {{ $kaprodi['nip'] ?? '' }}
+                    <strong style="text-decoration: underline;">{{ $pLeft['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $pLeft['nip_label'] ?? 'NIP.' }} {{ $pLeft['nip'] ?? '' }}
                 </td>
                 <td width="50%" align="center">
-                    Wali Kelas
+                    {{ $getJabatanLabel($activePembina[0]) }}
                     <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $waliKelas['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $waliKelas['nip_label'] ?? 'NIP.' }} {{ $waliKelas['nip'] ?? '' }}
+                    <strong style="text-decoration: underline;">{{ $pRight['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $pRight['nip_label'] ?? 'NIP.' }} {{ $pRight['nip'] ?? '' }}
                 </td>
             </tr>
             
-        @elseif($templateType === 'wali_waka')
-            {{-- Template 3: Wali Kelas + Waka Kesiswaan --}}
+        @elseif($jumlahPembina === 3)
+            {{-- 3 Pembina: Terendah KANAN, menengah KIRI, Tertinggi BAWAH TENGAH --}}
+            {{-- activePembina: [0]=terendah, [1]=menengah, [2]=tertinggi --}}
+            @php 
+                $pRight = $getPembinaData($activePembina[0]);  // Terendah
+                $pLeft = $getPembinaData($activePembina[1]);   // Menengah
+                $pBottom = $getPembinaData($activePembina[2]); // Tertinggi
+            @endphp
             <tr>
                 <td width="50%" align="center">
-                    Wali Kelas
+                    {{ $getJabatanLabel($activePembina[1]) }}
                     <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $waliKelas['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $waliKelas['nip_label'] ?? 'NIP.' }} {{ $waliKelas['nip'] ?? '' }}
+                    <strong style="text-decoration: underline;">{{ $pLeft['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $pLeft['nip_label'] ?? 'NIP.' }} {{ $pLeft['nip'] ?? '' }}
                 </td>
                 <td width="50%" align="center">
-                    Waka. Kesiswaan
+                    {{ $getJabatanLabel($activePembina[0]) }}
                     <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $wakaKesiswaan['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $wakaKesiswaan['nip_label'] ?? 'NIP.' }} {{ $wakaKesiswaan['nip'] ?? '' }}
-                </td>
-            </tr>
-            
-        @elseif($templateType === 'wali_kaprodi_waka')
-            {{-- Template 4: Kaprodi (KIRI) + Wali (KANAN), Waka (BAWAH CENTERED) --}}
-            <tr>
-                <td width="50%" align="center">
-                    Ketua Program Keahlian
-                    <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $kaprodi['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $kaprodi['nip_label'] ?? 'NIP.' }} {{ $kaprodi['nip'] ?? '' }}
-                </td>
-                <td width="50%" align="center">
-                    Wali Kelas
-                    <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $waliKelas['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $waliKelas['nip_label'] ?? 'NIP.' }} {{ $waliKelas['nip'] ?? '' }}
-                </td>
-            </tr>
-            <tr>
-                <td colspan="2" align="center" style="padding-top: 40px;">
-                    Waka. Kesiswaan
-                    <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $wakaKesiswaan['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $wakaKesiswaan['nip_label'] ?? 'NIP.' }} {{ $wakaKesiswaan['nip'] ?? '' }}
-                </td>
-            </tr>
-            
-        @else
-            {{-- Template 5: FULL (Waka KIRI + Wali KANAN, Kepsek BAWAH) --}}
-            <tr>
-                <td width="50%" align="center">
-                    Waka. Kesiswaan
-                    <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $wakaKesiswaan['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $wakaKesiswaan['nip_label'] ?? 'NIP.' }} {{ $wakaKesiswaan['nip'] ?? '' }}
-                </td>
-                <td width="50%" align="center">
-                    Wali Kelas
-                    <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $waliKelas['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $waliKelas['nip_label'] ?? 'NIP.' }} {{ $waliKelas['nip'] ?? '' }}
+                    <strong style="text-decoration: underline;">{{ $pRight['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $pRight['nip_label'] ?? 'NIP.' }} {{ $pRight['nip'] ?? '' }}
                 </td>
             </tr>
             <tr>
                 <td colspan="2" align="center" style="padding-top: 40px;">
                     Mengetahui<br>
-                    Kepala Sekolah
+                    {{ $getJabatanLabel($activePembina[2]) }}
                     <div style="height: 70px;"></div>
-                    <strong style="text-decoration: underline;">{{ $kepalaSekolah['username'] ?? '(.................................................)' }}</strong><br>
-                    {{ $kepalaSekolah['nip_label'] ?? 'NIP.' }} {{ $kepalaSekolah['nip'] ?? '' }}
+                    <strong style="text-decoration: underline;">{{ $pBottom['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $pBottom['nip_label'] ?? 'NIP.' }} {{ $pBottom['nip'] ?? '' }}
+                </td>
+            </tr>
+            
+        @elseif($jumlahPembina >= 4)
+            {{-- 4+ Pembina: Dua baris --}}
+            {{-- Baris 1: Kaprodi (kiri), Wali Kelas (kanan) --}}
+            {{-- Baris 2: Waka (kiri), Kepala Sekolah (kanan) dengan "Mengetahui" --}}
+            {{-- activePembina: [0]=Wali Kelas, [1]=Kaprodi, [2]=Waka, [3]=Kepala Sekolah --}}
+            @php 
+                $p0 = $getPembinaData($activePembina[0] ?? null); // Wali Kelas
+                $p1 = $getPembinaData($activePembina[1] ?? null); // Kaprodi
+                $p2 = $getPembinaData($activePembina[2] ?? null); // Waka
+                $p3 = $getPembinaData($activePembina[3] ?? null); // Kepala Sekolah
+            @endphp
+            {{-- Baris 1: Kaprodi (kiri) + Wali Kelas (kanan) --}}
+            <tr>
+                <td width="50%" align="center">
+                    {{ $getJabatanLabel($activePembina[1]) }}
+                    <div style="height: 70px;"></div>
+                    <strong style="text-decoration: underline;">{{ $p1['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $p1['nip_label'] ?? 'NIP.' }} {{ $p1['nip'] ?? '' }}
+                </td>
+                <td width="50%" align="center">
+                    {{ $getJabatanLabel($activePembina[0]) }}
+                    <div style="height: 70px;"></div>
+                    <strong style="text-decoration: underline;">{{ $p0['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $p0['nip_label'] ?? 'NIP.' }} {{ $p0['nip'] ?? '' }}
+                </td>
+            </tr>
+            {{-- Baris 2: Waka (kiri) + Kepala Sekolah (kanan dengan Mengetahui) --}}
+            <tr>
+                <td width="50%" align="center" style="padding-top: 40px;">
+                    {{ $getJabatanLabel($activePembina[2]) }}
+                    <div style="height: 70px;"></div>
+                    <strong style="text-decoration: underline;">{{ $p2['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $p2['nip_label'] ?? 'NIP.' }} {{ $p2['nip'] ?? '' }}
+                </td>
+                <td width="50%" align="center" style="padding-top: 40px;">
+                    Mengetahui<br>
+                    {{ $getJabatanLabel($activePembina[3]) }}
+                    <div style="height: 70px;"></div>
+                    <strong style="text-decoration: underline;">{{ $p3['username'] ?? '(.................................................)' }}</strong><br>
+                    {{ $p3['nip_label'] ?? 'NIP.' }} {{ $p3['nip'] ?? '' }}
+                </td>
+            </tr>
+        @else
+            {{-- Fallback: Tidak ada pembina (seharusnya tidak terjadi) --}}
+            <tr>
+                <td colspan="2" align="center">
+                    <em>Data pembina tidak tersedia</em>
                 </td>
             </tr>
         @endif
         
     </table>
 
+@if(!$isPreviewMode)
 </body>
 </html>
+@else
+</div>
+@endif

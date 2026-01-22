@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Traits\LogsActivity;
 use App\Services\User\RoleService;
 use Spatie\Activitylog\LogOptions;
@@ -16,7 +17,43 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasFactory, Notifiable, LogsActivity, MustVerifyEmailTrait;
+    use HasFactory, Notifiable, LogsActivity, MustVerifyEmailTrait, SoftDeletes;
+
+    /**
+     * Boot the model and add soft delete listeners for unique constraint handling.
+     * 
+     * When user is soft deleted, we suffix unique fields (email, username, google_id)
+     * with "_deleted_[timestamp]" to prevent conflicts when creating new users.
+     * When restoring, we remove the suffix.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Before soft delete: suffix unique fields to avoid conflict
+        static::deleting(function ($user) {
+            if ($user->isForceDeleting()) {
+                return; // Hard delete, no need to mutate
+            }
+            
+            $suffix = '_deleted_' . time();
+            $user->email = $user->email . $suffix;
+            $user->username = $user->username . $suffix;
+            if ($user->google_id) {
+                $user->google_id = $user->google_id . $suffix;
+            }
+            $user->saveQuietly(); // Save without triggering events
+        });
+
+        // After restore: remove suffix from unique fields
+        static::restoring(function ($user) {
+            $user->email = preg_replace('/_deleted_\d+$/', '', $user->email);
+            $user->username = preg_replace('/_deleted_\d+$/', '', $user->username);
+            if ($user->google_id) {
+                $user->google_id = preg_replace('/_deleted_\d+$/', '', $user->google_id);
+            }
+        });
+    }
 
     /**
      * Configure activity log options for User model.
@@ -42,6 +79,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'google_id',
         'phone',
         'nip',
+        'ni_pppk',
         'nuptk',
         'password',
         'username_changed_at',
@@ -145,6 +183,16 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Relasi: Mata pelajaran yang bisa diajarkan oleh guru ini (many-to-many)
+     */
+    public function mapelDiajar(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(MataPelajaran::class, 'guru_mata_pelajaran', 'user_id', 'mata_pelajaran_id')
+            ->withPivot('is_primary')
+            ->withTimestamps();
+    }
+
+    /**
      * Check if the user has the given role name.
      * Accepts a single role string or an array of role names.
      *
@@ -194,9 +242,66 @@ class User extends Authenticatable implements MustVerifyEmail
         'Wali Kelas',
         'Kaprodi',
         'Waka Kesiswaan',
+        'Waka Kurikulum',
         'Waka Sarana',
         'Operator Sekolah',
     ];
+
+    /**
+     * Get the identifier number with priority: NIP > NI PPPK > NUPTK
+     * 
+     * @return string|null
+     */
+    public function getIdentifierNumber(): ?string
+    {
+        if (!empty($this->nip)) {
+            return $this->nip;
+        }
+        if (!empty($this->ni_pppk)) {
+            return $this->ni_pppk;
+        }
+        if (!empty($this->nuptk)) {
+            return $this->nuptk;
+        }
+        return null;
+    }
+
+    /**
+     * Get the identifier label based on which identifier is used
+     * Priority: NIP > NI PPPK > NUPTK
+     * 
+     * @return string
+     */
+    public function getIdentifierLabel(): string
+    {
+        if (!empty($this->nip)) {
+            return 'NIP';
+        }
+        if (!empty($this->ni_pppk)) {
+            return 'NI PPPK';
+        }
+        if (!empty($this->nuptk)) {
+            return 'NUPTK';
+        }
+        return 'NIP';
+    }
+
+    /**
+     * Get the formatted identifier with label
+     * Example: "NIP. 198012345678" or "NI PPPK. 202012345678" or "NUPTK. 1234567890"
+     * 
+     * @return string
+     */
+    public function getFormattedIdentifier(): string
+    {
+        $number = $this->getIdentifierNumber();
+        $label = $this->getIdentifierLabel();
+        
+        if ($number) {
+            return $label . '. ' . $number;
+        }
+        return $label . '. _______________________';
+    }
 
     /**
      * Whether the user is a teacher (can record violations).

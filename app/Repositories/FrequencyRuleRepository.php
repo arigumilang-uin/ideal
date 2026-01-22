@@ -3,7 +3,9 @@
 namespace App\Repositories;
 
 use App\Models\PelanggaranFrequencyRule;
+use App\Repositories\Contracts\FrequencyRuleRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Frequency Rule Repository
@@ -14,21 +16,96 @@ use Illuminate\Database\Eloquent\Collection;
  * - Controller calls Service
  * - Service calls Repository
  * - Repository queries database
+ * 
+ * @implements FrequencyRuleRepositoryInterface
  */
-class FrequencyRuleRepository
+class FrequencyRuleRepository extends BaseRepository implements FrequencyRuleRepositoryInterface
 {
     /**
-     * Get all rules for a specific jenis pelanggaran
+     * Constructor
+     */
+    public function __construct()
+    {
+        parent::__construct(new PelanggaranFrequencyRule());
+    }
+
+    /**
+     * Get rules by jenis pelanggaran.
+     */
+    public function getByJenisPelanggaran(int $jenisPelanggaranId): Collection
+    {
+        return PelanggaranFrequencyRule::where('jenis_pelanggaran_id', $jenisPelanggaranId)
+            ->orderBy('display_order')
+            ->get();
+    }
+
+    /**
+     * Get rule for specific frequency.
+     */
+    public function getRuleForFrequency(int $jenisPelanggaranId, int $frequency): ?PelanggaranFrequencyRule
+    {
+        return PelanggaranFrequencyRule::where('jenis_pelanggaran_id', $jenisPelanggaranId)
+            ->where('frequency_min', '<=', $frequency)
+            ->where('frequency_max', '>=', $frequency)
+            ->first();
+    }
+
+    /**
+     * Get all rules with jenis pelanggaran relation.
+     */
+    public function getAllWithJenisPelanggaran(): Collection
+    {
+        return PelanggaranFrequencyRule::with('jenisPelanggaran')
+            ->orderBy('display_order')
+            ->get();
+    }
+
+    /**
+     * Delete all rules for jenis pelanggaran.
+     */
+    public function deleteByJenisPelanggaran(int $jenisPelanggaranId): int
+    {
+        return PelanggaranFrequencyRule::where('jenis_pelanggaran_id', $jenisPelanggaranId)->delete();
+    }
+
+    /**
+     * Bulk create rules for jenis pelanggaran.
+     */
+    public function bulkCreateForJenis(int $jenisPelanggaranId, array $rules): bool
+    {
+        DB::beginTransaction();
+        try {
+            foreach ($rules as $index => $rule) {
+                PelanggaranFrequencyRule::create([
+                    'jenis_pelanggaran_id' => $jenisPelanggaranId,
+                    'frequency_min' => $rule['frequency_min'],
+                    'frequency_max' => $rule['frequency_max'],
+                    'poin' => $rule['poin'],
+                    'sanksi' => $rule['sanksi'] ?? null,
+                    'trigger_surat' => $rule['trigger_surat'] ?? false,
+                    'tipe_surat' => $rule['tipe_surat'] ?? null,
+                    'pembina_roles' => $rule['pembina_roles'] ?? null,
+                    'display_order' => $index + 1,
+                ]);
+            }
+            DB::commit();
+            return true;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    // ===================================================================
+    // LEGACY METHODS (Keep for backward compatibility)
+    // ===================================================================
+
+    /**
+     * Get all rules for a specific jenis pelanggaran - LEGACY ALIAS
      */
     public function findByJenisPelanggaran(int $jenisPelanggaranId, ?string $orderBy = 'display_order'): Collection
     {
-        $query = PelanggaranFrequencyRule::where('jenis_pelanggaran_id', $jenisPelanggaranId);
-        
-        if ($orderBy) {
-            $query->orderBy($orderBy);
-        }
-        
-        return $query->get();
+        return $this->getByJenisPelanggaran($jenisPelanggaranId);
     }
 
     /**
@@ -57,18 +134,18 @@ class FrequencyRuleRepository
     }
 
     /**
-     * Update rule
+     * Update rule (legacy method - use parent::update instead)
      */
-    public function update(int $ruleId, array $data): bool
+    public function updateRule(int $ruleId, array $data): bool
     {
         $rule = $this->findOrFail($ruleId);
         return $rule->update($data);
     }
 
     /**
-     * Delete rule
+     * Delete rule (legacy method - use parent::delete instead)
      */
-    public function delete(int $ruleId): bool
+    public function deleteRule(int $ruleId): bool
     {
         $rule = $this->findOrFail($ruleId);
         return $rule->delete();

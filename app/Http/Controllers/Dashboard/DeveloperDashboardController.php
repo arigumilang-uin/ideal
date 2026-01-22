@@ -11,8 +11,9 @@ class DeveloperDashboardController extends Controller
     {
         $user = auth()->user();
         
-        // Developer dashboard only for Developer role
-        if (! $user->hasRole('Developer')) {
+        // Developer dashboard only for actual Developer role (not impersonated)
+        // Use isDeveloper() which checks the REAL role, not effective role
+        if (! $user->isDeveloper()) {
             abort(403, 'Developer dashboard only accessible by Developer role.');
         }
         

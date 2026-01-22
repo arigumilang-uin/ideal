@@ -49,6 +49,10 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
         // Statistics per siswa
         Route::get('/siswa/{siswa}/statistics', [RiwayatPelanggaranController::class, 'siswaStatistics'])
             ->name('siswa.statistics');
+
+        // Bulk delete
+        Route::post('/bulk-delete', [RiwayatPelanggaranController::class, 'bulkDelete'])
+            ->name('bulk-delete');
     });
     
     // API: Get kelas by jurusan
@@ -80,7 +84,7 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
             'update' => 'jenis-pelanggaran.update',
             'destroy' => 'jenis-pelanggaran.destroy',
         ])
-        ->middleware('role:Operator Sekolah'); // Only operator can manage
+        ->middleware('role:Operator Sekolah');
 
     // Additional Jenis Pelanggaran Routes
     Route::prefix('jenis-pelanggaran')->name('jenis-pelanggaran.')->group(function () {

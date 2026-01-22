@@ -19,34 +19,74 @@ import dataTable from "./components/data-table";
 // ALPINE GLOBAL COMPONENTS
 // ============================================
 
-// Sidebar Toggle Component
+// Sidebar Toggle Component with localStorage persistence
 Alpine.data("sidebar", () => ({
-    open: false,
+    open: true, // Default open
+    animated: false, // Transition enabler
 
     init() {
-        // Check screen size on init
-        this.checkScreenSize();
-        window.addEventListener("resize", () => this.checkScreenSize());
-        
-        // Watch for open state changes to manage body scroll
+        // Load saved state from localStorage (desktop only)
+        if (window.innerWidth >= 1024) {
+            const saved = localStorage.getItem('sidebar_open');
+            this.open = saved === null ? true : saved === 'true';
+        } else {
+            this.open = false; // Mobile always starts closed
+        }
+
+        // Enable transitions after a tick
+        this.$nextTick(() => {
+            this.animated = true;
+
+            // Restore sidebar scroll position
+            this.restoreScrollPosition();
+        });
+
+        // Watch for open state changes
         this.$watch('open', (value) => {
             this.updateBodyScroll(value);
+            // Save state to localStorage (desktop only)
+            if (window.innerWidth >= 1024) {
+                localStorage.setItem('sidebar_open', value);
+            }
         });
-    },
 
-    checkScreenSize() {
-        if (window.innerWidth >= 1024) {
-            this.open = true;
-        } else {
-            this.open = false;
+        // Save scroll position before page unload
+        window.addEventListener('beforeunload', () => {
+            this.saveScrollPosition();
+        });
+
+        // Also save on link click (for SPA-like navigation)
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) {
+            sidebar.addEventListener('click', (e) => {
+                if (e.target.closest('a')) {
+                    this.saveScrollPosition();
+                }
+            });
         }
     },
-    
+
+    // Save sidebar scroll position to sessionStorage
+    saveScrollPosition() {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) {
+            sessionStorage.setItem('sidebar_scroll', sidebar.scrollTop);
+        }
+    },
+
+    // Restore sidebar scroll position from sessionStorage
+    restoreScrollPosition() {
+        const sidebar = document.getElementById('sidebar');
+        const savedScroll = sessionStorage.getItem('sidebar_scroll');
+        if (sidebar && savedScroll) {
+            sidebar.scrollTop = parseInt(savedScroll, 10);
+        }
+    },
+
     // Lock/unlock body scroll based on sidebar state (mobile only)
     updateBodyScroll(isOpen) {
         if (window.innerWidth < 1024) {
             if (isOpen) {
-                // Store current scroll position and lock
                 document.body.dataset.scrollY = window.scrollY;
                 document.body.style.overflow = 'hidden';
                 document.body.style.position = 'fixed';
@@ -54,7 +94,6 @@ Alpine.data("sidebar", () => ({
                 document.body.style.left = '0';
                 document.body.style.right = '0';
             } else {
-                // Restore scroll position and unlock
                 const scrollY = document.body.dataset.scrollY || '0';
                 document.body.style.overflow = '';
                 document.body.style.position = '';
@@ -207,24 +246,24 @@ Alpine.data("kelasForm", (config = {}) => ({
     jurusanId: config.jurusanId || "",
     konsentrasiId: config.konsentrasiId || "",
     createWali: false,
-    
+
     // Dynamic konsentrasi
     konsentrasiList: [],
     loadingKonsentrasi: false,
     konsentrasiApiUrl: config.konsentrasiApiUrl || "/api/konsentrasi/by-jurusan",
-    
+
     init() {
         if (this.jurusanId) {
             this.loadKonsentrasi();
         }
     },
-    
+
     async loadKonsentrasi() {
         this.konsentrasiId = "";
         this.konsentrasiList = [];
-        
+
         if (!this.jurusanId) return;
-        
+
         this.loadingKonsentrasi = true;
         try {
             const response = await fetch(`${this.konsentrasiApiUrl}?jurusan_id=${this.jurusanId}`);
@@ -235,7 +274,7 @@ Alpine.data("kelasForm", (config = {}) => ({
             this.loadingKonsentrasi = false;
         }
     },
-    
+
     onJurusanChange() {
         this.loadKonsentrasi();
     },
@@ -245,29 +284,29 @@ Alpine.data("kelasForm", (config = {}) => ({
 Alpine.data("userForm", (config = {}) => ({
     roleId: config.roleId || "",
     roleMap: config.roleMap || {},
-    
+
     getRoleName() {
         return this.roleMap[this.roleId] || "";
     },
-    
+
     needsNipNuptk() {
-        const roles = ["guru", "waka kesiswaan", "waka sarana", "operator sekolah", "wali kelas", "kaprodi", "kepala sekolah"];
+        const roles = ["guru", "waka kesiswaan", "waka kurikulum", "waka sarana", "operator sekolah", "wali kelas", "kaprodi", "kepala sekolah"];
         const name = this.getRoleName();
         return roles.some((r) => name.includes(r));
     },
-    
+
     isWaliKelas() {
         return this.getRoleName().includes("wali kelas");
     },
-    
+
     isKaprodi() {
         return this.getRoleName().includes("kaprodi");
     },
-    
+
     isWaliMurid() {
         return this.getRoleName().includes("wali murid");
     },
-    
+
     isDeveloper() {
         return this.getRoleName().includes("developer");
     },

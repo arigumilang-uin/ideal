@@ -99,21 +99,16 @@ class JenisPelanggaranController extends Controller
     }
 
     /**
-     * Hapus jenis pelanggaran dengan proteksi
-     * 
-     * REFACTORED from 12 lines to 12 lines (same but cleaner)
-     * Logic moved to Service
+     * Soft delete jenis pelanggaran
      */
     public function destroy($id)
     {
-        $result = $this->jenisPelanggaranService->deleteJenisPelanggaran($id);
+        $jenisPelanggaran = \App\Models\JenisPelanggaran::findOrFail($id);
+        $jenisPelanggaran->delete();
         
-        if ($result['success']) {
-            return redirect()
-                ->route('frequency-rules.index')
-                ->with('success', $result['message']);
-        } else {
-            return back()->with('error', $result['message']);
-        }
+        return redirect()
+            ->route('frequency-rules.index')
+            ->with('success', 'Jenis pelanggaran berhasil dihapus.');
     }
 }
+
