@@ -168,9 +168,9 @@ class SiswaService
             $siswa->save();
         }
 
-        // Soft delete related data
-        \App\Models\RiwayatPelanggaran::where('siswa_id', $siswaId)->delete();
-        \App\Models\TindakLanjut::where('siswa_id', $siswaId)->delete();
+        // Soft delete related data handled by Observer
+        // \App\Models\RiwayatPelanggaran::where('siswa_id', $siswaId)->delete();
+        // \App\Models\TindakLanjut::where('siswa_id', $siswaId)->delete();
 
         return $this->siswaRepository->delete($siswaId);
     }
@@ -301,6 +301,33 @@ class SiswaService
     {
         return DB::table('kelas')
             ->select('id', 'nama_kelas')
+            ->orderBy('nama_kelas')
+            ->get();
+    }
+
+    /**
+     * Get konsentrasi by jurusan ID for Kaprodi filter.
+     */
+    public function getKonsentrasiByJurusan(int $jurusanId)
+    {
+        return DB::table('konsentrasi')
+            ->select('id', 'nama_konsentrasi')
+            ->where('jurusan_id', $jurusanId)
+            ->orderBy('nama_konsentrasi')
+            ->get();
+    }
+
+    /**
+     * Get kelas by jurusan ID for Kaprodi filter.
+     */
+    public function getKelasByJurusan(int $jurusanId)
+    {
+        return DB::table('kelas')
+            ->select('id', 'nama_kelas')
+            ->where(function($query) use ($jurusanId) {
+                $query->where('jurusan_id', $jurusanId)
+                      ->orWhere('konsentrasi_id', $jurusanId);
+            })
             ->orderBy('nama_kelas')
             ->get();
     }
