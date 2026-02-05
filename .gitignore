@@ -1,5 +1,6 @@
 *.log
 .DS_Store
+.env
 .env.backup
 .env.production
 .phpactor.json
@@ -24,3 +25,4 @@ docs/
 plantuml.jar
 nul
 plantuml/
+.env
