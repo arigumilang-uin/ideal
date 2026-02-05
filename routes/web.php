@@ -21,6 +21,24 @@ use App\Http\Controllers\Auth\LoginController;
 // AUTHENTICATION ROUTES (Guest) - Protected with Rate Limiting
 // ===================================================================
 
+// ===================================================================
+// PASSWORD RESET (Forgot Password) - Accessible to both guests and authenticated users
+// Note: Authenticated users may forget their old password too
+// ===================================================================
+Route::get('/password/reset', [\App\Http\Controllers\Auth\ForgotPasswordController::class, 'showLinkRequestForm'])
+    ->name('password.request');
+
+Route::post('/password/email', [\App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetLinkEmail'])
+    ->middleware('throttle:5,1')
+    ->name('password.email');
+
+Route::get('/password/reset/{token}', [\App\Http\Controllers\Auth\ResetPasswordController::class, 'showResetForm'])
+    ->name('password.reset');
+
+Route::post('/password/reset', [\App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])
+    ->middleware('throttle:5,1')
+    ->name('password.update');
+
 Route::middleware('guest')->group(function () {
     // Login Form (no throttle needed for viewing form)
     Route::get('/', [LoginController::class, 'showLoginForm'])
@@ -51,6 +69,20 @@ Route::middleware(['auth'])->group(function () {
     // Logout (always accessible)
     Route::post('/logout', [LoginController::class, 'logout'])
         ->name('logout');
+
+    // ===================================================================
+    // EMAIL VERIFICATION ROUTES
+    // ===================================================================
+    Route::get('/email/verify', [\App\Http\Controllers\Auth\VerificationController::class, 'notice'])
+        ->name('verification.notice');
+    
+    Route::get('/email/verify/{id}/{hash}', [\App\Http\Controllers\Auth\VerificationController::class, 'verify'])
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('verification.verify');
+    
+    Route::post('/email/verification-notification', [\App\Http\Controllers\Auth\VerificationController::class, 'resend'])
+        ->middleware('throttle:6,1')
+        ->name('verification.send');
 
     // ===================================================================
     // PROFILE COMPLETION ROUTES (First Login)

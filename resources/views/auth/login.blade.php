@@ -178,7 +178,7 @@
                             </div>
                         </div>
 
-                        <div class="flex items-center mb-4" x-data="{ checked: false }">
+                        <div class="flex items-center justify-between mb-4" x-data="{ checked: false }">
                             <label class="flex items-center cursor-pointer select-none group">
                                 <div class="relative flex items-center justify-center w-[18px] h-[18px]">
                                     <!-- Hidden Native Input -->
@@ -200,6 +200,10 @@
                                 </div>
                                 <span class="ml-2 text-[12px] text-slate-500 font-medium group-hover:text-slate-600 transition-colors">Ingat saya</span>
                             </label>
+                            
+                            <a href="{{ route('password.request') }}" class="text-[12px] text-emerald-600 font-medium hover:text-emerald-700 hover:underline transition-colors">
+                                Lupa Password?
+                            </a>
                         </div>
 
                         <button type="submit" 

@@ -10,271 +10,241 @@
 @endsection
 
 @section('content')
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    {{-- Profile Card --}}
-    <div class="lg:col-span-1">
-        <div class="card">
-            <div class="card-body text-center">
-                {{-- Avatar --}}
-                <div class="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg shadow-blue-500/30">
-                    {{ strtoupper(substr(Auth::user()->username ?? 'U', 0, 1)) }}
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+    
+    {{-- LEFT COLUMN: Profile Summary Card --}}
+    <div class="lg:col-span-4">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            {{-- Header with gradient background --}}
+            <div class="h-24 bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 relative">
+                <div class="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\"30\" height=\"30\" viewBox=\"0 0 30 30\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cpath d=\"M1.22676 0C1.91374 0 2.45351 0.539773 2.45351 1.22676C2.45351 1.91374 1.91374 2.45351 1.22676 2.45351C0.539773 2.45351 0 1.91374 0 1.22676C0 0.539773 0.539773 0 1.22676 0Z\" fill=\"rgba(255,255,255,0.07)\"%3E%3C/path%3E%3C/svg%3E')] opacity-50"></div>
+            </div>
+            
+            {{-- Avatar --}}
+            <div class="relative -mt-12 px-6">
+                <div class="w-24 h-24 mx-auto rounded-2xl bg-gradient-to-br from-white to-slate-50 flex items-center justify-center text-3xl font-bold shadow-lg border-4 border-white ring-4 ring-indigo-100">
+                    <span class="bg-gradient-to-br from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                        {{ strtoupper(substr(Auth::user()->username ?? 'U', 0, 1)) }}
+                    </span>
                 </div>
+            </div>
+            
+            {{-- User Info --}}
+            <div class="px-6 pt-4 pb-6 text-center">
+                <h3 class="text-xl font-bold text-slate-800">{{ Auth::user()->username }}</h3>
+                <p class="text-slate-500 text-sm mt-1">{{ Auth::user()->email ?? 'Email belum diatur' }}</p>
                 
-                <h3 class="text-xl font-bold text-gray-800 mt-4">{{ Auth::user()->username }}</h3>
-                <p class="text-gray-500">{{ Auth::user()->email ?? 'Email belum diatur' }}</p>
-                
+                {{-- Role Badge --}}
                 <div class="mt-4">
-                    <span class="badge badge-primary text-sm">
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 border border-indigo-200">
+                        <x-ui.icon name="shield-check" size="14" />
                         {{ Auth::user()->effectiveRoleName() ?? Auth::user()->role?->nama_role ?? 'User' }}
                     </span>
                 </div>
-                
-                {{-- Stats --}}
-                <div class="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-gray-100">
-                    <div>
-                        <p class="text-2xl font-bold text-gray-800">{{ Auth::user()->created_at?->diffInDays(now()) ?? 0 }}</p>
-                        <p class="text-xs text-gray-500">Hari Bergabung</p>
+            </div>
+            
+            {{-- Quick Info --}}
+            <div class="px-6 pb-6 space-y-3">
+                <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <div class="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600">
+                        <x-ui.icon name="calendar" size="16" />
                     </div>
-                    <div>
-                        <p class="text-2xl font-bold text-gray-800">{{ Auth::user()->last_login_at?->diffForHumans() ?? '-' }}</p>
-                        <p class="text-xs text-gray-500">Login Terakhir</p>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Bergabung</p>
+                        <p class="text-sm font-semibold text-slate-700 mt-0.5">{{ Auth::user()->created_at?->format('d M Y') ?? '-' }}</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <div class="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
+                        <x-ui.icon name="clock" size="16" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Login Terakhir</p>
+                        <p class="text-sm font-semibold text-slate-700 mt-0.5">{{ Auth::user()->last_login_at?->diffForHumans() ?? 'Baru saja' }}</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <div class="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600">
+                        <x-ui.icon name="hash" size="16" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Hari Bergabung</p>
+                        <p class="text-sm font-semibold text-slate-700 mt-0.5">{{ Auth::user()->created_at?->diffInDays(now()) ?? 0 }} hari</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     
-    {{-- Edit Forms --}}
-    <div class="lg:col-span-2 space-y-6">
-        {{-- Profile Information --}}
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title flex items-center gap-2">
-                    <x-ui.icon name="user" size="18" class="text-gray-400" />
-                    Informasi Profil
-                </h3>
-            </div>
-            <div class="card-body">
-                <form action="{{ route('account.update') }}" method="POST" class="space-y-4">
-                    @csrf
-                    @method('PUT')
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {{-- Username --}}
-                        <div class="form-group">
-                            <label for="username" class="form-label">Nama Lengkap</label>
-                            @if(Auth::user()->hasRole('Wali Murid'))
-                                {{-- Wali Murid can edit their username --}}
-                                <input 
-                                    type="text" 
-                                    id="username"
-                                    name="username"
-                                    value="{{ old('username', Auth::user()->username) }}" 
-                                    class="form-input @error('username') error @enderror"
-                                    placeholder="Nama lengkap Anda"
-                                >
-                                @error('username')
-                                    <p class="form-error">{{ $message }}</p>
-                                @enderror
-                                <p class="form-help">Nama yang akan ditampilkan di sistem.</p>
-                            @else
-                                {{-- Other roles: readonly --}}
-                                <input type="text" value="{{ Auth::user()->username }}" class="form-input bg-gray-50" readonly disabled>
-                                <p class="form-help">Nama Lengkap hanya dapat diubah oleh Operator Sekolah.</p>
-                            @endif
-                        </div>
-                        
-                        {{-- Email --}}
-                        <div class="form-group">
-                            <label for="email" class="form-label">Email</label>
-                            <input 
-                                type="email" 
-                                id="email" 
-                                name="email" 
-                                value="{{ old('email', Auth::user()->email) }}"
-                                class="form-input @error('email') error @enderror" 
-                                placeholder="contoh@email.com"
-                            >
-                            @error('email')
-                                <p class="form-error">{{ $message }}</p>
-                            @enderror
-                        </div>
-                    </div>
-                    
-                    {{-- NIP/NI PPPK/NUPTK (for teachers) --}}
-                    @if(Auth::user()->hasAnyRole(['Guru', 'Wali Kelas', 'Kaprodi', 'Waka Kesiswaan', 'Kepala Sekolah']))
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="form-group">
-                            <label for="nip" class="form-label">NIP</label>
-                            <input 
-                                type="text" 
-                                id="nip" 
-                                name="nip" 
-                                value="{{ old('nip', Auth::user()->nip) }}"
-                                class="form-input @error('nip') error @enderror" 
-                                placeholder="Nomor Induk Pegawai"
-                            >
-                            <p class="form-help">Untuk PNS</p>
-                            @error('nip')
-                                <p class="form-error">{{ $message }}</p>
-                            @enderror
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="ni_pppk" class="form-label">NI PPPK</label>
-                            <input 
-                                type="text" 
-                                id="ni_pppk" 
-                                name="ni_pppk" 
-                                value="{{ old('ni_pppk', Auth::user()->ni_pppk) }}"
-                                class="form-input @error('ni_pppk') error @enderror" 
-                                placeholder="Nomor Induk PPPK"
-                            >
-                            <p class="form-help">Untuk PPPK</p>
-                            @error('ni_pppk')
-                                <p class="form-error">{{ $message }}</p>
-                            @enderror
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="nuptk" class="form-label">NUPTK</label>
-                            <input 
-                                type="text" 
-                                id="nuptk" 
-                                name="nuptk" 
-                                value="{{ old('nuptk', Auth::user()->nuptk) }}"
-                                class="form-input @error('nuptk') error @enderror" 
-                                placeholder="Nomor Unik Pendidik"
-                            >
-                            <p class="form-help">Untuk Non-ASN</p>
-                            @error('nuptk')
-                                <p class="form-error">{{ $message }}</p>
-                            @enderror
-                        </div>
-                    </div>
+    {{-- RIGHT COLUMN: Forms --}}
+    <div class="lg:col-span-8 space-y-6">
+        
+        {{-- SECTION 1: Profile Information --}}
+        <x-forms.section 
+            title="Informasi Profil" 
+            variant="card"
+            icon="user"
+        >
+            <x-slot name="description">Kelola informasi dasar akun Anda.</x-slot>
+            
+            <form action="{{ route('account.update') }}" method="POST" class="space-y-5">
+                @csrf
+                @method('PUT')
+                
+                <x-forms.grid :cols="2">
+                    {{-- Username --}}
+                    @if(Auth::user()->hasRole('Wali Murid'))
+                        <x-forms.input 
+                            name="username" 
+                            label="Nama Lengkap" 
+                            :value="Auth::user()->username"
+                            placeholder="Nama lengkap Anda"
+                            help="Nama yang akan ditampilkan di sistem."
+                        />
+                    @else
+                        <x-forms.input 
+                            name="username_display" 
+                            label="Nama Lengkap" 
+                            :value="Auth::user()->username"
+                            readonly
+                            disabled
+                            help="Nama Lengkap hanya dapat diubah oleh Operator Sekolah."
+                            class="bg-slate-50"
+                        />
                     @endif
                     
-                    <div class="flex justify-end pt-4">
-                        <button type="submit" class="btn btn-primary">
-                            <x-ui.icon name="save" size="18" />
-                            <span>Simpan Perubahan</span>
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-        
-        {{-- Change Password --}}
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title flex items-center gap-2">
-                    <x-ui.icon name="lock" size="18" class="text-gray-400" />
-                    Ubah Password
-                </h3>
-            </div>
-            <div class="card-body">
-                <form action="{{ route('account.password.update') }}" method="POST" class="space-y-4">
-                    @csrf
-                    @method('POST')
-                    
-                    {{-- Current Password --}}
-                    <div class="form-group" x-data="{ show: false }">
-                        <label for="current_password" class="form-label form-label-required">Password Saat Ini</label>
-                        <div class="relative">
-                            <input 
-                                :type="show ? 'text' : 'password'" 
-                                id="current_password" 
-                                name="current_password" 
-                                class="form-input !pr-10 @error('current_password') error @enderror" 
-                                placeholder="Masukkan password saat ini"
-                                required
-                            >
-                            <button 
-                                type="button" 
-                                @click="show = !show"
-                                class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                            >
-                                <svg x-show="!show" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>
-                                </svg>
-                                <svg x-show="show" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/>
-                                </svg>
-                            </button>
-                        </div>
-                        @error('current_password')
-                            <p class="form-error">{{ $message }}</p>
-                        @enderror
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {{-- New Password --}}
-                        <div class="form-group" x-data="{ show: false }">
-                            <label for="password" class="form-label form-label-required">Password Baru</label>
-                            <div class="relative">
-                                <input 
-                                    :type="show ? 'text' : 'password'" 
-                                    id="password" 
-                                    name="password" 
-                                    class="form-input !pr-10 @error('password') error @enderror" 
-                                    placeholder="Minimal 8 karakter"
-                                    required
-                                >
-                                <button 
-                                    type="button" 
-                                    @click="show = !show"
-                                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                                >
-                                    <svg x-show="!show" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>
-                                    </svg>
-                                    <svg x-show="show" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/>
-                                    </svg>
-                                </button>
-                            </div>
-                            @error('password')
-                                <p class="form-error">{{ $message }}</p>
-                            @enderror
-                        </div>
+                    {{-- Email --}}
+                    <x-forms.input 
+                        name="email" 
+                        type="email"
+                        label="Email" 
+                        :value="Auth::user()->email"
+                        placeholder="contoh@email.com"
+                        icon="mail"
+                    />
+                </x-forms.grid>
+                
+                {{-- NIP/NI PPPK/NUPTK (for teachers) --}}
+                @if(Auth::user()->hasAnyRole(['Guru', 'Wali Kelas', 'Kaprodi', 'Waka Kesiswaan', 'Kepala Sekolah']))
+                <div class="pt-4 mt-4 border-t border-slate-100">
+                    <h4 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                        <x-ui.icon name="id-card" size="16" class="text-slate-400" />
+                        Identitas Kepegawaian
+                    </h4>
+                    <x-forms.grid :cols="3">
+                        <x-forms.input 
+                            name="nip" 
+                            label="NIP" 
+                            :value="Auth::user()->nip"
+                            placeholder="Nomor Induk Pegawai"
+                            help="Untuk PNS"
+                        />
                         
-                        {{-- Confirm Password --}}
-                        <div class="form-group" x-data="{ show: false }">
-                            <label for="password_confirmation" class="form-label form-label-required">Konfirmasi Password</label>
-                            <div class="relative">
-                                <input 
-                                    :type="show ? 'text' : 'password'" 
-                                    id="password_confirmation" 
-                                    name="password_confirmation" 
-                                    class="form-input !pr-10" 
-                                    placeholder="Ulangi password baru"
-                                    required
-                                >
-                                <button 
-                                    type="button" 
-                                    @click="show = !show"
-                                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                                >
-                                    <svg x-show="!show" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>
-                                    </svg>
-                                    <svg x-show="show" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/>
-                                    </svg>
-                                </button>
-                            </div>
+                        <x-forms.input 
+                            name="ni_pppk" 
+                            label="NI PPPK" 
+                            :value="Auth::user()->ni_pppk"
+                            placeholder="Nomor Induk PPPK"
+                            help="Untuk PPPK"
+                        />
+                        
+                        <x-forms.input 
+                            name="nuptk" 
+                            label="NUPTK" 
+                            :value="Auth::user()->nuptk"
+                            placeholder="Nomor Unik Pendidik"
+                            help="Untuk Non-ASN"
+                        />
+                    </x-forms.grid>
+                </div>
+                @endif
+                
+                <div class="flex justify-end pt-4 border-t border-slate-100">
+                    <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 shadow-sm hover:shadow transition-all active:scale-95">
+                        <x-ui.icon name="save" size="16" />
+                        Simpan Perubahan
+                    </button>
+                </div>
+            </form>
+        </x-forms.section>
+        
+        {{-- SECTION 2: Change Password --}}
+        <x-forms.section 
+            title="Ubah Password" 
+            variant="card"
+            icon="lock"
+        >
+            <x-slot name="description">Pastikan akun Anda menggunakan password yang kuat.</x-slot>
+            
+            <form action="{{ route('account.password.update') }}" method="POST" class="space-y-5">
+                @csrf
+                
+                {{-- Current Password --}}
+                <x-forms.password
+                    name="current_password"
+                    label="Password Saat Ini"
+                    required
+                    placeholder="Masukkan password saat ini"
+                    autocomplete="current-password"
+                />
+                
+                <x-forms.grid :cols="2">
+                    {{-- New Password --}}
+                    <x-forms.password
+                        name="password"
+                        label="Password Baru"
+                        required
+                        placeholder="Minimal 8 karakter"
+                        autocomplete="new-password"
+                    />
+                    
+                    {{-- Confirm Password --}}
+                    <x-forms.password
+                        name="password_confirmation"
+                        label="Konfirmasi Password"
+                        required
+                        placeholder="Ulangi password baru"
+                        autocomplete="new-password"
+                    />
+                </x-forms.grid>
+                
+                {{-- Password Requirements Info --}}
+                <div class="p-4 rounded-xl bg-amber-50 border border-amber-100">
+                    <div class="flex gap-3">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600">
+                            <x-ui.icon name="info" size="16" />
+                        </div>
+                        <div>
+                            <h5 class="text-sm font-semibold text-amber-800">Tips Password Aman</h5>
+                            <ul class="mt-2 text-xs text-amber-700 space-y-1">
+                                <li class="flex items-center gap-1.5">
+                                    <x-ui.icon name="check" size="12" />
+                                    Minimal 8 karakter
+                                </li>
+                                <li class="flex items-center gap-1.5">
+                                    <x-ui.icon name="check" size="12" />
+                                    Kombinasi huruf besar, huruf kecil, dan angka
+                                </li>
+                                <li class="flex items-center gap-1.5">
+                                    <x-ui.icon name="check" size="12" />
+                                    Hindari informasi pribadi yang mudah ditebak
+                                </li>
+                            </ul>
                         </div>
                     </div>
-                    
-                    <div class="flex justify-end pt-4">
-                        <button type="submit" class="btn btn-primary">
-                            <x-ui.icon name="shield-check" size="18" />
-                            <span>Ubah Password</span>
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                </div>
+                
+                <div class="flex justify-end pt-4 border-t border-slate-100">
+                    <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 shadow-sm hover:shadow transition-all active:scale-95">
+                        <x-ui.icon name="shield-check" size="16" />
+                        Ubah Password
+                    </button>
+                </div>
+            </form>
+        </x-forms.section>
+        
     </div>
 </div>
 @endsection

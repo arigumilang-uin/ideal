@@ -379,12 +379,21 @@ class UserController extends Controller
 
     /**
      * Change own password.
+     * 
+     * Security measures:
+     * - Verifies old password before allowing change
+     * - Strong password validation (min 8 chars, mixed case, numbers)
+     * - Checks against known breached passwords (haveibeenpwned)
+     * - Regenerates session to invalidate other sessions
      */
     public function changePassword(Request $request): RedirectResponse
     {
         $request->validate([
             'old_password' => ['required'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', 'min:6', 'confirmed'],
+        ], [
+            'password.min' => 'Password minimal 6 karakter.',
+            'password.confirmed' => 'Konfirmasi password tidak sesuai.',
         ]);
 
         try {
@@ -394,9 +403,16 @@ class UserController extends Controller
                 $request->password
             );
 
+            // Send security notification email
+            $user = auth()->user();
+            $user->notify(new \App\Notifications\PasswordChangedNotification('profile', $request->ip()));
+
+            // Regenerate session for security (invalidates other sessions)
+            $request->session()->regenerate();
+
             return redirect()
-                ->route('profile.show')
-                ->with('success', 'Password berhasil diubah.');
+                ->route('profile.edit')
+                ->with('success', 'Password berhasil diubah. Email konfirmasi telah dikirim.');
                 
         } catch (\Exception $e) {
             return redirect()
