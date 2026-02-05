@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\JadwalMengajarController;
 use App\Http\Controllers\Admin\PeriodeSemesterController;
 use App\Http\Controllers\Admin\KurikulumController;
 use App\Http\Controllers\Admin\TemplateJamController;
+use App\Http\Controllers\Admin\TutorialController;
 
 /*
 |--------------------------------------------------------------------------
@@ -55,6 +56,9 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
     // ===================================================================
     
     Route::prefix('admin')->name('admin.')->middleware('role:Operator Sekolah,Waka Kurikulum,Developer')->group(function () {
+        
+        // --- Panduan/Tutorial ---
+        Route::get('/panduan/kurikulum-jadwal', [TutorialController::class, 'kurikulumJadwal'])->name('panduan.kurikulum-jadwal');
         
         // --- Kurikulum ---
         Route::prefix('kurikulum')->name('kurikulum.')->group(function () {
